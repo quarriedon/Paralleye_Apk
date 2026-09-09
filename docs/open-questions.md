@@ -22,16 +22,27 @@ listed here and the UI must never imply scientific validation where none exists.
    Defaulted to mean (`CalibrationConfig.baselineStatistic`), marked
    `ENGINEERING_DEFAULT_UNVALIDATED`, swappable via config.
 
-## Flagged inconsistency — needs an authored answer, not an engineering guess
+## Resolved
+
+10. **Frame-based vs. timestamp-normalised load accumulation (Ch.7 vs Ch.2 §11).** Ch.7's
+    literal formula accumulates a fixed frame factor per cycle with no explicit time term,
+    while Ch.2 §11 separately mandates that the frame factor "must not assume every callback
+    represents an identical duration" and should be scaled relative to the intended sampling
+    rate. `DynamicLoadEngine.calculateIncrement` scales the configured frame factor by
+    `actualIntervalMillis / intendedIntervalMillis` before use — at the intended sampling rate
+    this is numerically identical to Ch.7's literal formula, and at any other effective rate
+    it satisfies Ch.2 §11's explicit instruction. Not a disputed methodology number: Ch.2 §11
+    itself describes exactly this technique as an acceptable robust implementation.
+
+## Checked, no conflict found
 
 4. **Angle-Load table vs. Posture Zone boundary revision.** Ch.1's revision note says the
-   Green/Yellow boundary moved 15°→20° "matching the pilot-informed update recorded in
-   Chapter 5", and Chapter 1's own copy of the angle-load table already reflects this (first
-   band is 0°-20°). Whether Chapter 5's independently-authored copy of the same table was
-   actually updated to match needs to be checked against Chapter 5 directly when the Angle
-   Interpretation Engine is implemented — if it still shows a 15° cut, that's a genuine
-   unresolved conflict between two chapters' stated values, not something to silently pick a
-   side on.
+   Green/Yellow boundary moved 15°→20°. Checked directly against Chapter 5 §41-§42 (Angle
+   Interpretation Engine implementation): Chapter 5's own copies of both the posture-zone
+   table (Green 0°-20°, Yellow 21°-25°, Red 26°+) and the angle-load table (identical bands
+   and values to Ch.1 §11) already reflect the revised boundary. No conflict — both chapters
+   agree. (An earlier research pass flagged this as unresolved without checking Ch.5 directly;
+   corrected here after reading Ch.5 in full.)
 
 ## Deliberately scoped out of this MVP build (not a silent omission)
 

@@ -14,7 +14,7 @@ class ConfigValidatorTest {
     @Test
     fun `unordered zone thresholds are rejected`() {
         val bad = ParallayeParameters.PROVISIONAL.copy(
-            zoneThresholds = ZoneThresholds(greenMaxDegrees = 30.0, yellowMaxDegrees = 25.0, origin = ParameterOrigin.ENGINEERING_DEFAULT_UNVALIDATED),
+            zoneThresholds = ZoneThresholds(greenMaxDegrees = 30.0, yellowMaxDegrees = 25.0, hysteresisMarginDegrees = 0.5, origin = ParameterOrigin.ENGINEERING_DEFAULT_UNVALIDATED),
         )
         val result = ConfigValidator.validate(bad)
         assertTrue(result is ValidationResult.Invalid)

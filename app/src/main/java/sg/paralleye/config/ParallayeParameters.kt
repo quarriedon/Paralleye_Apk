@@ -72,12 +72,15 @@ data class ZoneThresholds(
     val greenMaxDegrees: Double,
     /** Upper bound (inclusive, degrees) of the Yellow zone; Red is everything above. */
     val yellowMaxDegrees: Double,
+    /** Ch.5 §44: dead-band margin (degrees) a zone transition must clear before it takes effect. Not specified in the source documents. */
+    val hysteresisMarginDegrees: Double,
     val origin: ParameterOrigin,
 ) {
     companion object {
         val DEFAULT = ZoneThresholds(
             greenMaxDegrees = 20.0,
             yellowMaxDegrees = 25.0,
+            hysteresisMarginDegrees = 0.5,
             origin = ParameterOrigin.TECHNICAL_METHODOLOGY_RESOLUTION,
         )
     }

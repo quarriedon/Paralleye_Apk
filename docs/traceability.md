@@ -34,6 +34,17 @@ speculatively ahead of the code existing.
 | CAL-05 | Reset operations (new assessment archives, delete-all clears) | Ch.4 §35 | `CalibrationRepository.startNewBaselineAssessment/deleteAllCalibrationData` | — | Done (untested: Room glue); Reset Settings/Reset Behavioural Progress not yet applicable — no settings or adaptation state exist yet |
 | CAL-06 | Baseline/live-angle independence (no offset subtraction) | Ch.4 §15, §28-30 | Architectural — `BaselineProfile` is never read by any Ch.5-9 engine | — | Done by construction; revisit when those engines are implemented to confirm they stay that way |
 
-Rows for Angle Interpretation, Activity, Dynamic Load, Recovery, Scoring, Adaptive Alert,
-Session Management, Reporting and Onboarding modules are added as each is implemented in
-later commits.
+| ANG-01 | Deterministic posture-zone classification | Ch.5 §5-11 | `domain.behaviour.PostureZone`, `AngleInterpretationEngine` | `AngleInterpretationEngineTest` | Done |
+| ANG-02 | Non-linear angle-load mapping (reused from Ch.1/2 config) | Ch.5 §31 | `AngleInterpretationEngine` (uses `config.AngleLoadTable`) | `AngleInterpretationEngineTest` | Done — Ch.1 and Ch.5's copies of this table were checked and match (both already reflect the 20° revision); open-questions.md #4 resolved, no conflict found |
+| ANG-03 | Zone-transition hysteresis (dead-band, angle itself untouched) | Ch.5 §44-45 | `domain.behaviour.ZoneTransitionGate` | `ZoneTransitionGateTest` | Done |
+| ANG-04 | Full decimal-precision boundary handling, no gaps/overlaps | Ch.5 §42-43 | `PostureZone.classify` | `AngleInterpretationEngineTest` | Done |
+
+| ACT-01 | Evidence-based activity classification, Unknown fallback | Ch.1 §12, Ch.2 §8-9, Ch.6 | `domain.behaviour.ActivityClassifier` | `ActivityClassifierTest` | Done (real Android UsageStatsManager signal gathering deferred to Session Management integration) |
+| LOAD-01 | Dynamic Load Increment formula, timestamp-normalised | Ch.1 §15, Ch.2 §11 | `domain.behaviour.DynamicLoadEngine` | `DynamicLoadEngineTest` | Done — resolves open-questions.md #10 |
+| LOAD-02 | Cumulative Load accumulation, zero floor | Ch.1 §16, Ch.8 Rule 7 | `domain.behaviour.CumulativeLoadEngine` | `CumulativeLoadEngineTest` | Done; session reset ownership belongs to Ch.11 |
+| REC-01 | Recovery formula, continuous per-cycle evaluation (no min-duration gate) | Ch.8 §12-13, §23 | `domain.behaviour.RecoveryEngine` | `RecoveryEngineTest` | Done |
+| REC-02 | Prompt Correction Signal +5 bonus, applied by Recovery not Alert Engine | Ch.8 Rule 8 | `RecoveryEngine.applyPromptCorrectionBonus` | `RecoveryEngineTest` | Done; signal emission is Ch.10's responsibility (not yet implemented) |
+| SCORE-01 | Score formula, clamped, silent while suspended | Ch.9 | `domain.behaviour.ScoringEngine` | `ScoringEngineTest` | Done |
+
+Rows for Adaptive Alert, Session Management, Reporting and Onboarding modules are added as
+each is implemented in later commits.
