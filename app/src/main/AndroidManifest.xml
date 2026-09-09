@@ -5,7 +5,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <!-- Ch.3 Sec.30: continuous motion-sensor monitoring doesn't fit any of Android's predefined
          foreground-service categories (it's not Health Connect biometric data, media, location,
-         etc.) -- "specialUse" is Android's designated category for exactly this case, and unlike
+         etc.); "specialUse" is Android's designated category for exactly this case, and unlike
          "health" it doesn't require any body-sensor/Health-Connect permission this app has no
          reason to hold. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
