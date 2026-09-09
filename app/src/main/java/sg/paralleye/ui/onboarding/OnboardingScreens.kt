@@ -2,16 +2,14 @@ package sg.paralleye.ui.onboarding
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.spacedBy
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenu
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -47,11 +45,8 @@ fun WelcomeScreen(onContinue: () -> Unit) {
 }
 
 /** Ch.4 §5, Functional Spec System 1: age/gender/height, validated before saving. */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(viewModel: OnboardingViewModel, onSaved: () -> Unit) {
-    var genderMenuExpanded by remember { mutableStateOf(false) }
-
     Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
         Text("Tell us a little about you", style = MaterialTheme.typography.headlineSmall)
         Text(
@@ -72,22 +67,14 @@ fun ProfileScreen(viewModel: OnboardingViewModel, onSaved: () -> Unit) {
             modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
         )
 
-        ExposedDropdownMenuBox(expanded = genderMenuExpanded, onExpandedChange = { genderMenuExpanded = it }) {
-            OutlinedTextField(
-                value = viewModel.gender.name,
-                onValueChange = {},
-                readOnly = true,
-                label = { Text("Gender") },
-                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = genderMenuExpanded) },
-                modifier = Modifier.fillMaxWidth().menuAnchor(),
-            )
-            ExposedDropdownMenu(expanded = genderMenuExpanded, onDismissRequest = { genderMenuExpanded = false }) {
-                Gender.entries.forEach { option ->
-                    DropdownMenuItem(
-                        text = { Text(option.name) },
-                        onClick = { viewModel.gender = option; genderMenuExpanded = false },
-                    )
-                }
+        Text("Gender", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(bottom = 4.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Gender.entries.forEach { option ->
+                FilterChip(
+                    selected = viewModel.gender == option,
+                    onClick = { viewModel.gender = option },
+                    label = { Text(option.name) },
+                )
             }
         }
 
