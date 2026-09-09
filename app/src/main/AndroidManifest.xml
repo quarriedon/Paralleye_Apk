@@ -15,6 +15,7 @@
         tools:ignore="ProtectedPermissions" />
 
     <application
+        android:name=".ParallayeApplication"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
@@ -30,6 +31,11 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Debugging aid only, see ParallayeApplication's crash handler. -->
+        <activity
+            android:name=".CrashReportActivity"
+            android:exported="false" />
 
         <!-- Ch.3 Sec.30, Ch.11 Sec.14/18: continuous background sensor monitoring. -->
         <service
