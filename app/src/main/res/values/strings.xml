@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Paralleye</string>
+    <string name="monitoring_notification_channel_name">Posture monitoring</string>
+    <string name="monitoring_notification_title">Paralleye is monitoring your posture</string>
 </resources>

@@ -52,5 +52,11 @@ speculatively ahead of the code existing.
 | ALERT-04 | Prompt Correction Signal (once per Full-Alert episode, within window) | Ch.10 §32.1 | `AdaptiveAlertEngine.onCycle` | `AdaptiveAlertEngineTest` | Done; consumed by `RecoveryEngine.applyPromptCorrectionBonus` — wiring the two together happens in the Integration pass |
 | ALERT-05 | Fixed upper-left corner presentation, tap-to-dismiss | Ch.10 §38, §43 | `ui.mascot.MsAngleAngelOverlay` | — | Done (untested: Compose UI); full rigged animation deferred, see open-questions.md #11 |
 
-Rows for Session Management, Reporting and Onboarding modules are added as each is
-implemented in later commits.
+| SESS-01 | Operational state machine (Init/Ready/Active/Paused/Completed) | Ch.11 §22-31 | `session.MonitoringState`, `session.SessionManager` | — | Done (untested: entangled with Android Context/SensorManager/Room; no Robolectric in this build) |
+| SESS-02 | Module initialisation order, onboarding/permission gating | Ch.11 §34, §14 | `SessionManager.initialise` | — | Done (untested, as above) |
+| SESS-03 | Full pipeline sequencing (Sensor→Angle→Activity→Load→Recovery→Score→Alert) per sample | Ch.11 §28, §36 | `SessionManager.onSample` | — | Done (untested, as above); this is the first point all Ch.5-10 engines are actually wired together |
+| SESS-04 | Foreground service, notification, background continuity | Ch.3 §30, Ch.11 §18 | `session.MonitoringForegroundService` | — | Done (untested: Android Service glue) |
+| SESS-05 | Automatic restart after device reboot, gated on existing onboarding | Ch.11 §19 | `session.BootCompletedReceiver` | — | Done (untested: Android BroadcastReceiver glue) |
+| SESS-06 | Overlay/notification permission checks, graceful degradation | Ch.11 §14, Ch.2 §29 | `session.PermissionChecker` | — | Done (untested: Android permission APIs) |
+
+Rows for Reporting and Onboarding modules are added as each is implemented in later commits.
