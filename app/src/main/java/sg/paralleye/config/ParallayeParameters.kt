@@ -47,6 +47,8 @@ data class ParallayeParameters(
 
     val sensorFramework: SensorFrameworkConfig = SensorFrameworkConfig.DEFAULT,
 
+    val mascot: MascotConfig = MascotConfig.DEFAULT,
+
     /**
      * Ch.3/4/5 explicitly instruct that the device-angle → neck-flexion transform is
      * methodologically unresolved and must be kept modular/disabled rather than guessed
@@ -247,6 +249,25 @@ data class CalibrationConfig(
 
 /** Placeholder slot only — see [ParallayeParameters.neckFlexionTransform] KDoc. Not wired to any engine yet. */
 data class NeckFlexionTransformConfig(val coefficient: Double, val origin: ParameterOrigin)
+
+/** Ch.10 §47 "Configurable Parameters" — none of these values are specified in the source documents. */
+data class MascotConfig(
+    val appearanceAnimationMillis: Long,
+    val disappearanceAnimationMillis: Long,
+    val cornerOffsetXDp: Int,
+    val cornerOffsetYDp: Int,
+    val peelAnimationEnabled: Boolean,
+) {
+    companion object {
+        val DEFAULT = MascotConfig(
+            appearanceAnimationMillis = 500,
+            disappearanceAnimationMillis = 350,
+            cornerOffsetXDp = 8,
+            cornerOffsetYDp = 8,
+            peelAnimationEnabled = true,
+        )
+    }
+}
 
 /**
  * Ch.3 §34 "Configuration Parameters". None of these values are specified in the source

@@ -46,5 +46,11 @@ speculatively ahead of the code existing.
 | REC-02 | Prompt Correction Signal +5 bonus, applied by Recovery not Alert Engine | Ch.8 Rule 8 | `RecoveryEngine.applyPromptCorrectionBonus` | `RecoveryEngineTest` | Done; signal emission is Ch.10's responsibility (not yet implemented) |
 | SCORE-01 | Score formula, clamped, silent while suspended | Ch.9 | `domain.behaviour.ScoringEngine` | `ScoringEngineTest` | Done |
 
-Rows for Adaptive Alert, Session Management, Reporting and Onboarding modules are added as
-each is implemented in later commits.
+| ALERT-01 | Score-driven alert-level classification | Ch.10 §22, §26.1 | `domain.alert.AlertLevel` | `AlertLevelTest` | Done |
+| ALERT-02 | Dismissal hides mascot without affecting load/score; never confused with correction | Ch.10 §29, §36, §49 | `domain.alert.AdaptiveAlertEngine` | `AdaptiveAlertEngineTest` | Done |
+| ALERT-03 | Reappearance shows current level, cancels if corrected first | Ch.10 §30-31, §35 | `AdaptiveAlertEngine.onCycle` | `AdaptiveAlertEngineTest` | Done |
+| ALERT-04 | Prompt Correction Signal (once per Full-Alert episode, within window) | Ch.10 §32.1 | `AdaptiveAlertEngine.onCycle` | `AdaptiveAlertEngineTest` | Done; consumed by `RecoveryEngine.applyPromptCorrectionBonus` — wiring the two together happens in the Integration pass |
+| ALERT-05 | Fixed upper-left corner presentation, tap-to-dismiss | Ch.10 §38, §43 | `ui.mascot.MsAngleAngelOverlay` | — | Done (untested: Compose UI); full rigged animation deferred, see open-questions.md #11 |
+
+Rows for Session Management, Reporting and Onboarding modules are added as each is
+implemented in later commits.

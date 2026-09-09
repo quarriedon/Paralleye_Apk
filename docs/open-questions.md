@@ -64,6 +64,18 @@ listed here and the UI must never imply scientific validation where none exists.
    yet, consistent with §26's own MVP allowance rather than the more advanced adaptation the
    chapter describes as a later increment.
 
+## Deferred UI polish (not fabricated, not yet built)
+
+11. **Full corner-peel frame animation (Ch.10 §25, §40, character/animation specs).** The
+    character spec describes a rigged, 30fps, ease-in-out animated corner-peel entrance with
+    inter-frame tweening. Ch.10 §25/§40 explicitly mark the peel *animation* as optional (the
+    fixed corner *location* and progressive emergence are mandatory, and are implemented).
+    This build maps each `AlertLevel` to one settled static frame from the provided asset
+    pack (Peek→frame 03, Peel→frame 04, Full Alert→frame 06) and crossfades between them
+    (`MsAngleAngelOverlay`), rather than a full custom-rigged animation — a reasonable MVP
+    reading of §40's explicit optionality, not a silent shortcut. Upgrading to true
+    per-frame/Lottie animation is a follow-up, not a correctness gap.
+
 ## Needs physical-device confirmation
 
 6. **Device-angle axis convention (Ch.3 §7-§10).** The source formula θ = arccos(Z/|v|),
