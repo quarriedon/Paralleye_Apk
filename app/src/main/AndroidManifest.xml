@@ -12,6 +12,15 @@
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- README "Background monitoring": keeps the CPU awake so non-wakeup accelerometer/
+         gyroscope events keep arriving once the screen is off and the device would otherwise
+         enter Doze/light-sleep; a foreground service alone doesn't prevent that. -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- Shows the user the OS's own "exempt this app from battery optimization" dialog
+         (Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS) from the Settings screen;
+         does not itself grant anything silently. OEM battery managers otherwise kill an
+         unwhitelisted foreground service outright regardless of its notification/wake lock. -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <!-- PACKAGE_USAGE_STATS is a special-access permission granted via Settings, not requestable
          at runtime; declaring it here documents the intent even though monitoring itself does
          not require it (Activity classification degrades to Unknown without it, Ch.2 Sec.29). -->

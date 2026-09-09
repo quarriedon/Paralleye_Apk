@@ -5,6 +5,7 @@ import android.app.AppOpsManager
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
+import android.os.PowerManager
 import android.os.Process
 import android.provider.Settings
 import androidx.core.content.ContextCompat
@@ -46,5 +47,17 @@ object PermissionChecker {
     fun missingRequiredPermissions(context: Context): List<String> = buildList {
         if (!hasOverlayPermission(context)) add(Manifest.permission.SYSTEM_ALERT_WINDOW)
         if (!hasNotificationPermission(context)) add(Manifest.permission.POST_NOTIFICATIONS)
+    }
+
+    /**
+     * Not gated on for monitoring startup (Google Play policy disfavours apps that block core
+     * functionality behind this specific exemption, and unlike the permissions above it isn't
+     * anything Ch.11 §14 lists) but strongly recommended: OEM battery managers — Samsung's
+     * included — routinely kill an unwhitelisted foreground service outright regardless of its
+     * notification or wake lock. Surfaced instead as a recommendation on the Settings screen.
+     */
+    fun isIgnoringBatteryOptimizations(context: Context): Boolean {
+        val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+        return powerManager.isIgnoringBatteryOptimizations(context.packageName)
     }
 }

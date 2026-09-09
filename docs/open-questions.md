@@ -123,6 +123,26 @@ listed here and the UI must never imply scientific validation where none exists.
    This is a reasonable approximation for a single-axis tilt estimate but should be checked
    for drift/inaccuracy during extended physical-device testing (Ch.3 §35.4).
 
+14. **OEM battery-manager whitelisting, beyond what code can request.** Fixing the reported
+    "monitoring stops when backgrounded" bug required three things: `MascotOverlayController`
+    (the mascot was never actually drawn outside the app — see traceability.md SESS-07, by far
+    the biggest part of what the user was seeing), a held `PARTIAL_WAKE_LOCK` so non-wakeup
+    accelerometer/gyroscope events keep arriving with the screen off (SESS-04), and a
+    Settings-screen prompt for the standard Android
+    `ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` exemption (SET-01). None of this is
+    verifiable from this sandbox (no physical device). What remains genuinely open: Samsung
+    (the device from the earlier crash report), Xiaomi, Huawei and others layer a *second*,
+    OEM-specific battery manager on top of stock Android's — the standard exemption dialog
+    above does not reach it, and a user sometimes also has to manually add the app to a
+    device-specific "never sleeping apps"/"auto-start" allowlist in the OEM's own settings
+    (not the stock Android battery settings) for a foreground service to reliably survive
+    hours in the background. There's no single API to request this across OEMs. Needs
+    physical-device confirmation on the user's own Samsung device: check Settings → Apps →
+    Paralleye → Battery, and separately Samsung's device-care "Sleeping apps"/"Never sleeping
+    apps" list, after granting the in-app exemption above. The held wake lock is also a real,
+    disclosed battery-life cost for the duration of every monitoring session — not something
+    the source documents settle either way, so flagged here rather than silently accepted.
+
 ## Engineering interpretation (not a disputed methodology value)
 
 5. **Angle-load table lookup granularity.** The table in Ch.1 §11 is authored as whole-degree

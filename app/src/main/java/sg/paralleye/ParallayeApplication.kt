@@ -1,9 +1,11 @@
 package sg.paralleye
 
+import android.app.Activity
+import android.app.Application
 import android.content.Intent
 import android.os.Build
+import android.os.Bundle
 import android.os.Process
-import android.app.Application
 import java.io.File
 import java.io.PrintWriter
 import java.io.StringWriter
@@ -11,6 +13,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import kotlin.system.exitProcess
+import sg.paralleye.session.AppVisibilityTracker
 
 /**
  * Debugging aid, not part of the PARALLEYE methodology: captures uncaught exceptions to a file
@@ -21,6 +24,7 @@ import kotlin.system.exitProcess
 class ParallayeApplication : Application() {
     override fun onCreate() {
         super.onCreate()
+        registerActivityLifecycleCallbacks(AppVisibilityLifecycleCallbacks())
         val appContext = this
         Thread.setDefaultUncaughtExceptionHandler { _, throwable ->
             val traceText = formatTrace(throwable)
@@ -63,4 +67,15 @@ class ParallayeApplication : Application() {
         val timestamp = SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.US).format(Date())
         File(dir, "crash_$timestamp.txt").writeText(traceText)
     }
+}
+
+/** Only `onActivityStarted`/`onActivityStopped` matter to [AppVisibilityTracker]; the rest are no-ops. */
+private class AppVisibilityLifecycleCallbacks : Application.ActivityLifecycleCallbacks {
+    override fun onActivityStarted(activity: Activity) = AppVisibilityTracker.onActivityStarted()
+    override fun onActivityStopped(activity: Activity) = AppVisibilityTracker.onActivityStopped()
+    override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {}
+    override fun onActivityResumed(activity: Activity) {}
+    override fun onActivityPaused(activity: Activity) {}
+    override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {}
+    override fun onActivityDestroyed(activity: Activity) {}
 }

@@ -8,14 +8,18 @@ import android.app.Service
 import android.content.Intent
 import android.os.Build
 import android.os.IBinder
+import android.os.PowerManager
 import androidx.core.app.NotificationCompat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import sg.paralleye.MainActivity
 import sg.paralleye.R
+import sg.paralleye.config.ParallayeParameters
+import sg.paralleye.domain.alert.MascotVisibility
 import sg.paralleye.logging.ParallayeLogger
 
 /**
@@ -28,6 +32,8 @@ class MonitoringForegroundService : Service() {
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var sessionManager: SessionManager? = null
+    private var wakeLock: PowerManager.WakeLock? = null
+    private var mascotOverlayController: MascotOverlayController? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -44,12 +50,27 @@ class MonitoringForegroundService : Service() {
             return
         }
 
+        // README "Background monitoring": non-wakeup sensors (accelerometer/gyroscope) stop
+        // delivering events once the CPU suspends under Doze/light-sleep with the screen off --
+        // a foreground service alone does not prevent that. A held PARTIAL_WAKE_LOCK is the
+        // deliberate battery-for-reliability tradeoff this requires; see docs/open-questions.md.
+        wakeLock = (getSystemService(POWER_SERVICE) as PowerManager)
+            .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "$packageName:monitoring")
+            .apply { setReferenceCounted(false); acquire() }
+
+        val overlayController = MascotOverlayController(applicationContext, ParallayeParameters.PROVISIONAL.mascot)
+        mascotOverlayController = overlayController
+
         val manager = SessionManagerHolder.getInstance(applicationContext)
         sessionManager = manager
+        overlayController.onTapped = { manager.onMascotTapped() }
 
         serviceScope.launch {
             when (val outcome = manager.initialise()) {
-                InitialisationOutcome.Ready -> manager.startMonitoring()
+                InitialisationOutcome.Ready -> {
+                    manager.startMonitoring()
+                    observeMascotOverlay(manager, overlayController)
+                }
                 else -> {
                     ParallayeLogger.error("MonitoringForegroundService", "Initialisation did not reach Ready: $outcome")
                     stopSelf()
@@ -58,10 +79,32 @@ class MonitoringForegroundService : Service() {
         }
     }
 
+    /**
+     * Ch.10 §12, §38: the mascot must reach the user even while [sg.paralleye.MainActivity]
+     * isn't visible -- previously it only ever rendered inside that Activity's own Compose
+     * tree ([sg.paralleye.ui.mascot.MsAngleAngelOverlay]), so alerts were silently invisible
+     * the moment the app was backgrounded despite the pipeline still running. Shown here only
+     * while the app is *not* visible, so the two presentations are never both on screen.
+     */
+    private fun observeMascotOverlay(manager: SessionManager, overlayController: MascotOverlayController) {
+        serviceScope.launch {
+            combine(manager.cycleResults, AppVisibilityTracker.isAppVisible) { cycle, appVisible -> cycle to appVisible }
+                .collect { (cycle, appVisible) ->
+                    if (appVisible) {
+                        overlayController.hide()
+                    } else {
+                        overlayController.update(cycle?.alertVisibility ?: MascotVisibility.Hidden)
+                    }
+                }
+        }
+    }
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int = START_STICKY
 
     override fun onDestroy() {
         sessionManager?.completeSession()
+        mascotOverlayController?.hide()
+        wakeLock?.let { if (it.isHeld) it.release() }
         serviceScope.cancel()
         super.onDestroy()
     }
