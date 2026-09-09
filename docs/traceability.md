@@ -66,4 +66,9 @@ speculatively ahead of the code existing.
 
 **Not yet built**: a presentation dashboard/history UI consuming `ReportingRepository.getAllSessions()`/`getRecentSessions()` — the data model and persistence are complete, but no screen renders them yet. Scoped into the Integration pass or a follow-up, not fabricated.
 
-Rows for the Onboarding module are added when it's implemented.
+| ONB-01 | Welcome, privacy explanation, profile collection | Ch.11 §10-11, Functional Spec Sys.1 | `ui.onboarding.WelcomeScreen`, `ProfileScreen`, `OnboardingViewModel` | — | Done (untested: Compose UI) |
+| ONB-02 | Permission explanation + real overlay/notification permission requests | Ch.11 §14 | `ui.onboarding.PermissionExplanationScreen` | — | Done (untested: Compose UI + Activity Result APIs) |
+| ONB-03 | Guided baseline capture screen, live sensor-driven | Ch.4 §9-12, Ch.11 §12 | `ui.onboarding.GuidedCalibrationScreen`, `CalibrationCaptureController` | — | Done (untested: Android sensor glue) |
+| ONB-04 | Full onboarding flow, one-time only | Ch.11 §10, §15, §20 | `ui.onboarding.OnboardingNavHost`, `MainActivity.AppRoot` | — | Done (untested: Compose Navigation); `MainActivity` checks stored profile+baseline on every launch and never re-shows onboarding once both exist |
+
+**Not yet built**: a live monitoring dashboard bound to `SessionManager.cycleResults` (current score, zone, mascot overlay) — `MonitoringActiveScreen` starts the foreground service and confirms the pipeline runs end-to-end, but doesn't yet render live data or the Ch.10 mascot overlay on screen. Scoped into the Integration pass.
