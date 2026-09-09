@@ -5,6 +5,7 @@ import sg.paralleye.config.ParallayeParameters
 import sg.paralleye.data.calibration.CalibrationRepository
 import sg.paralleye.data.db.ParallayeDatabase
 import sg.paralleye.data.reporting.ReportingRepository
+import sg.paralleye.data.settings.SettingsRepository
 
 /**
  * Process-wide singleton so [MonitoringForegroundService] and the UI (`MonitoringActiveScreen`)
@@ -24,6 +25,7 @@ object SessionManagerHolder {
                     context = appContext,
                     calibrationRepository = CalibrationRepository(database.calibrationDao()),
                     reportingRepository = ReportingRepository(database.reportingDao()),
+                    settingsRepository = SettingsRepository(appContext),
                     params = ParallayeParameters.PROVISIONAL,
                 ).also { instance = it }
             }

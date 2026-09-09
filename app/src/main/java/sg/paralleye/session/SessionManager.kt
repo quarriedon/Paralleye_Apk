@@ -15,6 +15,7 @@ import sg.paralleye.config.ConfigValidator
 import sg.paralleye.config.ValidationResult
 import sg.paralleye.data.calibration.CalibrationRepository
 import sg.paralleye.data.reporting.ReportingRepository
+import sg.paralleye.data.settings.SettingsRepository
 import sg.paralleye.domain.alert.AdaptiveAlertEngine
 import sg.paralleye.domain.alert.MascotVisibility
 import sg.paralleye.domain.behaviour.ActivityClassifier
@@ -51,12 +52,18 @@ class SessionManager(
     private val context: Context,
     private val calibrationRepository: CalibrationRepository,
     private val reportingRepository: ReportingRepository,
+    private val settingsRepository: SettingsRepository,
     private val params: ParallayeParameters,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     var state: MonitoringState = MonitoringState.INITIALISATION
         private set
+
+    /** Ch.2 §25: the one approved behavioural parameter users can adjust; kept live so a
+     * change made from the Settings screen mid-session takes effect on the next cycle rather
+     * than needing a restart. */
+    @Volatile private var sensitivityLevel: SensitivityLevel = SensitivityLevel.MEDIUM
 
     private var sensorEngine: SensorFrameworkEngine? = null
     private val zoneGate = ZoneTransitionGate(params.zoneThresholds.hysteresisMarginDegrees)
@@ -99,6 +106,9 @@ class SessionManager(
         sessionSummaryAccumulator.start(System.currentTimeMillis())
         engine.start()
         scope.launch {
+            settingsRepository.sensitivityLevel.collect { level -> sensitivityLevel = level }
+        }
+        scope.launch {
             engine.samples.collect { sample -> if (sample != null) onSample(sample) }
         }
     }
@@ -133,7 +143,7 @@ class SessionManager(
     }
 
     fun onMascotTapped() {
-        val sensitivity = params.sensitivityPresets.getValue(SensitivityLevel.MEDIUM)
+        val sensitivity = params.sensitivityPresets.getValue(sensitivityLevel)
         alertEngine.onMascotTapped(System.currentTimeMillis(), sensitivity.reappearanceIntervalSeconds * 1000L)
     }
 
@@ -170,14 +180,19 @@ class SessionManager(
 
         var recoveryThisCycle = 0.0
         if (RecoveryEngine.isRecoveryQualifying(angle, params.recovery)) {
-            val recoveryAmount = RecoveryEngine.calculateRecovery(angle, params.recovery)
+            val recoveryAmount = RecoveryEngine.calculateRecovery(
+                angleDegrees = angle,
+                config = params.recovery,
+                actualIntervalMillis = actualIntervalMillis,
+                intendedIntervalMillis = intendedIntervalMillis,
+            )
             cumulativeLoad.subtract(recoveryAmount)
             recoveryThisCycle += recoveryAmount
         }
 
         val score = ScoringEngine.calculateScore(cumulativeLoad.currentLoad, params.score, monitoringActive = true) ?: return
 
-        val sensitivity = params.sensitivityPresets.getValue(SensitivityLevel.MEDIUM)
+        val sensitivity = params.sensitivityPresets.getValue(sensitivityLevel)
         val alertResult = alertEngine.onCycle(
             score = score,
             ranges = params.alertStateRanges,

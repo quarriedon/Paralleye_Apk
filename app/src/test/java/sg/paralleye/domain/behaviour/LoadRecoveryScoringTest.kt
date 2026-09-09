@@ -74,19 +74,31 @@ class RecoveryEngineTest {
     )
 
     @Test
-    fun `zero degrees produces maximum recovery of 0,3`() {
-        assertEquals(0.3, RecoveryEngine.calculateRecovery(0.0, config), 0.0001)
+    fun `zero degrees at intended sampling rate produces maximum recovery of 0,3`() {
+        assertEquals(0.3, RecoveryEngine.calculateRecovery(0.0, config, 20.0, 20.0), 0.0001)
     }
 
     @Test
-    fun `five degrees produces approximately 0,225`() {
-        assertEquals(0.225, RecoveryEngine.calculateRecovery(5.0, config), 0.001)
+    fun `five degrees at intended sampling rate produces approximately 0,225`() {
+        assertEquals(0.225, RecoveryEngine.calculateRecovery(5.0, config, 20.0, 20.0), 0.001)
     }
 
     @Test
     fun `angle at or above threshold produces zero recovery`() {
-        assertEquals(0.0, RecoveryEngine.calculateRecovery(20.0, config), 0.0001)
-        assertEquals(0.0, RecoveryEngine.calculateRecovery(25.0, config), 0.0001)
+        assertEquals(0.0, RecoveryEngine.calculateRecovery(20.0, config, 20.0, 20.0), 0.0001)
+        assertEquals(0.0, RecoveryEngine.calculateRecovery(25.0, config, 20.0, 20.0), 0.0001)
+    }
+
+    @Test
+    fun `faster than intended sampling rate scales recovery down proportionally, per Ch2 Sec11`() {
+        val atIntendedRate = RecoveryEngine.calculateRecovery(0.0, config, 20.0, 20.0)
+        val atDoubleRate = RecoveryEngine.calculateRecovery(0.0, config, 10.0, 20.0)
+        assertEquals(atIntendedRate / 2, atDoubleRate, 0.0001)
+    }
+
+    @Test
+    fun `zero or negative interval produces zero recovery rather than a divide error`() {
+        assertEquals(0.0, RecoveryEngine.calculateRecovery(0.0, config, 0.0, 20.0), 0.0001)
     }
 
     @Test
