@@ -76,18 +76,31 @@ listed here and the UI must never imply scientific validation where none exists.
     reading of §40's explicit optionality, not a silent shortcut. Upgrading to true
     per-frame/Lottie animation is a follow-up, not a correctness gap.
 
-## Not yet built (Functional Spec systems)
+    Separately: every `ms_angle_angel_*.png` frame has a full phone-bezel mockup illustration
+    baked into it (the source art shows "how it'd look on an iPhone" rather than being a
+    transparent, screen-ready sprite). Confirmed as leftover concept/presentation art, not
+    anything Ch.10 specifies — the app itself already is the phone, so this draws a
+    redundant phone-in-a-phone. Left in place (a pixel-crop of production art risked
+    cutting into the character or the peel edge without a proper alpha-matted source);
+    the real fix is requesting a transparent-background export of the same six frames from
+    whoever produced the art. Not the same bug as the mirror-direction fix — see traceability
+    ALERT-05 for that.
 
-12. **Settings screen (Functional Spec System 11).** Sensitivity levels
-    (Low/Medium/High), notification preferences, permission status, privacy info, and the
-    data-reset actions (`CalibrationRepository`/`ReportingRepository` already implement the
-    underlying reset/delete operations — Ch.4 §35) all lack a UI. Sensitivity is currently
-    hardcoded to `MEDIUM` in `SessionManager`. Not fabricated as done anywhere — flagged here
-    as the clearest remaining gap against the Functional Spec.
+## Built since the gaps below were first flagged
 
-13. **History dashboard (Functional Spec System 10).** Daily/weekly/monthly summaries and
-    baseline comparison views have no UI — `ReportingRepository.getAllSessions()`/
-    `getRecentSessions()` return the stored data, but nothing renders it yet.
+12. **Settings screen (Functional Spec System 11) — now built** (`ui.settings.SettingsScreen`,
+    `data.settings.SettingsRepository`). Covers sensitivity (Low/Medium/High, persisted via
+    DataStore and now actually read by `SessionManager` instead of the old hardcoded
+    `MEDIUM`), a read-only profile summary, and delete-all-data (behind a confirmation
+    dialog) wired to the reset operations Ch.4 §35 already specified. Still missing:
+    notification preferences and permission status — neither is specified anywhere beyond
+    "should exist" in the Functional Spec, so not guessed at rather than left out.
+
+13. **History dashboard (Functional Spec System 10) — now built** (`ui.history.HistoryScreen`).
+    Lists past sessions (most recent first) with score stats, zone-duration breakdown and
+    alert/correction counts via `ReportingRepository.getRecentSessions`. Still missing:
+    daily/weekly/monthly rollups and baseline-comparison views — the Functional Spec doesn't
+    specify their exact shape, so a flat session list ships now rather than a guessed layout.
 
 ## Needs physical-device confirmation
 
