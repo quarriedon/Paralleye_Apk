@@ -16,6 +16,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -26,9 +27,13 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import sg.paralleye.config.ParallayeParameters
 import sg.paralleye.data.calibration.CalibrationRepository
 import sg.paralleye.data.db.ParallayeDatabase
+import sg.paralleye.domain.alert.MascotVisibility
 import sg.paralleye.session.MonitoringForegroundService
+import sg.paralleye.session.SessionManagerHolder
+import sg.paralleye.ui.mascot.MsAngleAngelOverlay
 import sg.paralleye.ui.onboarding.OnboardingNavHost
 
 /**
@@ -79,13 +84,16 @@ private fun LoadingScreen() {
 }
 
 /**
- * Ch.11 §15: onboarding already complete — starts the foreground service and shows a minimal
- * status screen. A live dashboard bound to SessionManager's cycle-result stream (score, zone,
- * mascot state) is a follow-up; this proves the pipeline runs end-to-end from app launch.
+ * Ch.11 §15: onboarding already complete — starts the foreground service, then observes the
+ * *same* [sg.paralleye.session.SessionManager] instance (via [SessionManagerHolder]) that the
+ * service is driving, so the live score/zone and the Ch.10 mascot overlay actually reflect
+ * what the background pipeline is doing rather than a disconnected placeholder.
  */
 @Composable
 private fun MonitoringActiveScreen() {
     val context = androidx.compose.ui.platform.LocalContext.current
+    val sessionManager = remember { SessionManagerHolder.getInstance(context) }
+    val cycleResult by sessionManager.cycleResults.collectAsState()
 
     LaunchedEffect(Unit) {
         val serviceIntent = Intent(context, MonitoringForegroundService::class.java)
@@ -96,14 +104,27 @@ private fun MonitoringActiveScreen() {
         }
     }
 
-    Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Text("Paralleye is monitoring your posture", style = MaterialTheme.typography.headlineSmall)
-        Text(
-            "You can put your phone away — Ms Angle Angel will check in if it's worth a stretch.",
-            modifier = Modifier.padding(top = 8.dp),
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier.fillMaxSize().padding(24.dp),
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Text("Paralleye is monitoring your posture", style = MaterialTheme.typography.headlineSmall)
+            Text(
+                "You can put your phone away — Ms Angle Angel will check in if it's worth a stretch.",
+                modifier = Modifier.padding(top = 8.dp),
+            )
+            val result = cycleResult
+            if (result != null) {
+                Text("Score: ${result.score}", modifier = Modifier.padding(top = 24.dp))
+                Text("Zone: ${result.zone}")
+            }
+        }
+
+        MsAngleAngelOverlay(
+            visibility = cycleResult?.alertVisibility ?: MascotVisibility.Hidden,
+            config = ParallayeParameters.PROVISIONAL.mascot,
+            onTapped = { sessionManager.onMascotTapped() },
         )
     }
 }

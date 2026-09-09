@@ -16,10 +16,6 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import sg.paralleye.MainActivity
 import sg.paralleye.R
-import sg.paralleye.config.ParallayeParameters
-import sg.paralleye.data.calibration.CalibrationRepository
-import sg.paralleye.data.db.ParallayeDatabase
-import sg.paralleye.data.reporting.ReportingRepository
 import sg.paralleye.logging.ParallayeLogger
 
 /**
@@ -38,10 +34,7 @@ class MonitoringForegroundService : Service() {
         createNotificationChannel()
         startForeground(NOTIFICATION_ID, buildNotification())
 
-        val database = ParallayeDatabase.getInstance(applicationContext)
-        val calibrationRepository = CalibrationRepository(database.calibrationDao())
-        val reportingRepository = ReportingRepository(database.reportingDao())
-        val manager = SessionManager(applicationContext, calibrationRepository, reportingRepository, ParallayeParameters.PROVISIONAL)
+        val manager = SessionManagerHolder.getInstance(applicationContext)
         sessionManager = manager
 
         serviceScope.launch {

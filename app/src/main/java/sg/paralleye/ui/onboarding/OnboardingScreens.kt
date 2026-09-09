@@ -9,6 +9,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenu
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.LinearProgressIndicator
@@ -80,7 +81,7 @@ fun ProfileScreen(viewModel: OnboardingViewModel, onSaved: () -> Unit) {
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = genderMenuExpanded) },
                 modifier = Modifier.fillMaxWidth().menuAnchor(),
             )
-            androidx.compose.material3.ExposedDropdownMenu(expanded = genderMenuExpanded, onDismissRequest = { genderMenuExpanded = false }) {
+            ExposedDropdownMenu(expanded = genderMenuExpanded, onDismissRequest = { genderMenuExpanded = false }) {
                 Gender.entries.forEach { option ->
                     DropdownMenuItem(
                         text = { Text(option.name) },
