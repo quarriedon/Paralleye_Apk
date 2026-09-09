@@ -5,22 +5,24 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import sg.paralleye.data.db.dao.CalibrationDao
+import sg.paralleye.data.db.dao.ReportingDao
 import sg.paralleye.data.db.entities.BaselineProfileEntity
+import sg.paralleye.data.db.entities.SessionSummaryEntity
 import sg.paralleye.data.db.entities.UserProfileEntity
 
 /**
- * Single local Room database for PARALLEYE (Ch.4 §37, Ch.11/§12 persistence requirements).
- * Reporting entities (Ch.12) are added to this same database in that module rather than a
- * separate one, per Ch.2 §14 "Single Calculation Path Principle" style discipline — one
- * authoritative local store, not several competing ones.
+ * Single local Room database for PARALLEYE (Ch.4 §37, Ch.12 §23 persistence requirements) —
+ * one authoritative local store per Ch.2 §14 "Single Calculation Path Principle" discipline,
+ * not several competing ones.
  */
 @Database(
-    entities = [UserProfileEntity::class, BaselineProfileEntity::class],
+    entities = [UserProfileEntity::class, BaselineProfileEntity::class, SessionSummaryEntity::class],
     version = 1,
     exportSchema = false,
 )
 abstract class ParallayeDatabase : RoomDatabase() {
     abstract fun calibrationDao(): CalibrationDao
+    abstract fun reportingDao(): ReportingDao
 
     companion object {
         @Volatile private var instance: ParallayeDatabase? = null

@@ -14,6 +14,7 @@ import sg.paralleye.config.SensitivityLevel
 import sg.paralleye.config.ConfigValidator
 import sg.paralleye.config.ValidationResult
 import sg.paralleye.data.calibration.CalibrationRepository
+import sg.paralleye.data.reporting.ReportingRepository
 import sg.paralleye.domain.alert.AdaptiveAlertEngine
 import sg.paralleye.domain.alert.MascotVisibility
 import sg.paralleye.domain.behaviour.ActivityClassifier
@@ -26,6 +27,7 @@ import sg.paralleye.domain.behaviour.RecoveryEngine
 import sg.paralleye.domain.behaviour.ScoringEngine
 import sg.paralleye.domain.behaviour.ZoneTransitionGate
 import sg.paralleye.domain.measurement.MeasurementSample
+import sg.paralleye.domain.reporting.SessionSummaryAccumulator
 import sg.paralleye.logging.CycleRecord
 import sg.paralleye.logging.ParallayeLogger
 import sg.paralleye.sensors.SensorFrameworkEngine
@@ -48,6 +50,7 @@ data class PipelineCycleResult(
 class SessionManager(
     private val context: Context,
     private val calibrationRepository: CalibrationRepository,
+    private val reportingRepository: ReportingRepository,
     private val params: ParallayeParameters,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -59,6 +62,7 @@ class SessionManager(
     private val zoneGate = ZoneTransitionGate(params.zoneThresholds.hysteresisMarginDegrees)
     private val cumulativeLoad = CumulativeLoadEngine()
     private val alertEngine = AdaptiveAlertEngine()
+    private val sessionSummaryAccumulator = SessionSummaryAccumulator()
     private var lastSampleTimestampNanos: Long? = null
 
     private val _cycleResults = MutableStateFlow<PipelineCycleResult?>(null)
@@ -92,6 +96,7 @@ class SessionManager(
         val engine = sensorEngine ?: return
         ParallayeLogger.monitoringStateChange(state.name, MonitoringState.MONITORING_ACTIVE.name)
         state = MonitoringState.MONITORING_ACTIVE
+        sessionSummaryAccumulator.start(System.currentTimeMillis())
         engine.start()
         scope.launch {
             engine.samples.collect { sample -> if (sample != null) onSample(sample) }
@@ -112,11 +117,18 @@ class SessionManager(
         state = MonitoringState.MONITORING_ACTIVE
     }
 
-    /** Ch.11 §29: stops processing; completed session data is left untouched for Ch.12 Reporting. */
+    /** Ch.11 §29, Ch.12 §11/§20: stops processing and generates+stores the Session Summary. */
     fun completeSession() {
         ParallayeLogger.monitoringStateChange(state.name, MonitoringState.SESSION_COMPLETED.name)
+        val wasActive = state == MonitoringState.MONITORING_ACTIVE || state == MonitoringState.MONITORING_PAUSED
         state = MonitoringState.SESSION_COMPLETED
         sensorEngine?.stop()
+        if (wasActive) {
+            // Deliberately NOT `scope`, which is cancelled immediately below — this save must
+            // outlive that cancellation to actually reach the database.
+            val summary = sessionSummaryAccumulator.finish(System.currentTimeMillis())
+            CoroutineScope(Dispatchers.Default).launch { reportingRepository.saveSession(summary) }
+        }
         scope.cancel()
     }
 
@@ -156,8 +168,11 @@ class SessionManager(
         )
         cumulativeLoad.addIncrement(increment)
 
+        var recoveryThisCycle = 0.0
         if (RecoveryEngine.isRecoveryQualifying(angle, params.recovery)) {
-            cumulativeLoad.subtract(RecoveryEngine.calculateRecovery(angle, params.recovery))
+            val recoveryAmount = RecoveryEngine.calculateRecovery(angle, params.recovery)
+            cumulativeLoad.subtract(recoveryAmount)
+            recoveryThisCycle += recoveryAmount
         }
 
         val score = ScoringEngine.calculateScore(cumulativeLoad.currentLoad, params.score, monitoringActive = true) ?: return
@@ -171,8 +186,21 @@ class SessionManager(
             promptCorrectionWindowMillis = params.recovery.promptCorrectionWindowSeconds * 1000L,
         )
         if (alertResult.promptCorrectionSignal) {
+            val before = cumulativeLoad.currentLoad
             RecoveryEngine.applyPromptCorrectionBonus(cumulativeLoad, params.recovery)
+            recoveryThisCycle += before - cumulativeLoad.currentLoad
         }
+
+        sessionSummaryAccumulator.observeCycle(
+            zone = effectiveZone,
+            activity = activity.category,
+            intervalMillis = actualIntervalMillis.toLong(),
+            score = score,
+            cumulativeLoad = cumulativeLoad.currentLoad,
+            recoveryThisCycle = recoveryThisCycle,
+            alertJustAppeared = alertResult.alertJustAppeared,
+            postureJustCorrected = alertResult.postureJustCorrected,
+        )
 
         ParallayeLogger.cycle(
             CycleRecord(

@@ -7,6 +7,10 @@ data class AlertCycleResult(
     val visibility: MascotVisibility,
     /** Ch.10 §32.1: true exactly once per qualifying Full-Alert episode, consumed by the caller (Recovery Engine applies the actual bonus — this engine never touches Cumulative Load, per Ch.10 §9/§36/§49). */
     val promptCorrectionSignal: Boolean,
+    /** Ch.12 §16: true exactly on the cycle the mascot transitions from Hidden to Visible — for the reporting system's alert count, not consumed by any behavioural engine. */
+    val alertJustAppeared: Boolean,
+    /** Ch.12 §16: true exactly on the cycle the behavioural level reaches Idle from a non-Idle level — a "posture-correction event" for reporting, distinct from the Ch.10 §32.1 prompt-correction bonus condition. */
+    val postureJustCorrected: Boolean,
 )
 
 /**
@@ -24,6 +28,7 @@ class AdaptiveAlertEngine {
     private var isDismissed = false
     private var waitingUntilMillis: Long? = null
     private var previousLevel: AlertLevel = AlertLevel.IDLE
+    private var wasVisible = false
     private var fullAlertEnteredAtMillis: Long? = null
     private var promptCorrectionConsumedForCurrentFullAlert = false
 
@@ -35,6 +40,7 @@ class AdaptiveAlertEngine {
         promptCorrectionWindowMillis: Long,
     ): AlertCycleResult {
         val level = AlertLevel.classify(score, ranges)
+        val postureJustCorrected = level == AlertLevel.IDLE && previousLevel != AlertLevel.IDLE
 
         // Ch.10 §32.1: Prompt Correction Signal — reaching Idle within the window of first
         // entering Full Alert, detected once per qualifying episode.
@@ -74,7 +80,11 @@ class AdaptiveAlertEngine {
             else -> MascotVisibility.Visible(level)
         }
 
-        return AlertCycleResult(level, visibility, promptSignal)
+        val isVisibleNow = visibility is MascotVisibility.Visible
+        val alertJustAppeared = isVisibleNow && !wasVisible
+        wasVisible = isVisibleNow
+
+        return AlertCycleResult(level, visibility, promptSignal, alertJustAppeared, postureJustCorrected)
     }
 
     /** Ch.10 §13, §29, §43: tapping the mascot dismisses it immediately; never interpreted as correction. */
@@ -87,6 +97,7 @@ class AdaptiveAlertEngine {
         isDismissed = false
         waitingUntilMillis = null
         previousLevel = AlertLevel.IDLE
+        wasVisible = false
         fullAlertEnteredAtMillis = null
         promptCorrectionConsumedForCurrentFullAlert = false
     }

@@ -109,6 +109,25 @@ class AdaptiveAlertEngineTest {
     }
 
     @Test
+    fun `alertJustAppeared fires once on transition to visible, not on every visible cycle`() {
+        val engine = AdaptiveAlertEngine()
+        val first = engine.onCycle(40, ranges, nowMillis = 0, reappear, promptWindow) // Peel, newly visible
+        assertTrue(first.alertJustAppeared)
+        val second = engine.onCycle(35, ranges, nowMillis = 100, reappear, promptWindow) // still Peel
+        assertFalse(second.alertJustAppeared)
+    }
+
+    @Test
+    fun `postureJustCorrected fires once on transition to idle`() {
+        val engine = AdaptiveAlertEngine()
+        engine.onCycle(40, ranges, nowMillis = 0, reappear, promptWindow)
+        val corrected = engine.onCycle(80, ranges, nowMillis = 100, reappear, promptWindow)
+        assertTrue(corrected.postureJustCorrected)
+        val stillIdle = engine.onCycle(90, ranges, nowMillis = 200, reappear, promptWindow)
+        assertFalse(stillIdle.postureJustCorrected)
+    }
+
+    @Test
     fun `no signal when never having reached full alert`() {
         val engine = AdaptiveAlertEngine()
         engine.onCycle(60, ranges, nowMillis = 0, reappear, promptWindow) // Peek only

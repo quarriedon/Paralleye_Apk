@@ -59,4 +59,11 @@ speculatively ahead of the code existing.
 | SESS-05 | Automatic restart after device reboot, gated on existing onboarding | Ch.11 §19 | `session.BootCompletedReceiver` | — | Done (untested: Android BroadcastReceiver glue) |
 | SESS-06 | Overlay/notification permission checks, graceful degradation | Ch.11 §14, Ch.2 §29 | `session.PermissionChecker` | — | Done (untested: Android permission APIs) |
 
-Rows for Reporting and Onboarding modules are added as each is implemented in later commits.
+| REP-01 | Session Summary generation from live cycle data (read-only, no recalculation) | Ch.12 §10-16 | `domain.reporting.SessionSummaryAccumulator`, `SessionSummary` | `SessionSummaryAccumulatorTest` | Done |
+| REP-02 | Historical session persistence, append-only | Ch.12 §23 | `data.reporting.ReportingRepository`, `SessionSummaryEntity` | — | Done (untested: Room glue) |
+| REP-03 | Alert-count / correction-event tracking | Ch.12 §16 | `AdaptiveAlertEngine` (`alertJustAppeared`/`postureJustCorrected`), consumed by the accumulator | `AdaptiveAlertEngineTest`, `SessionSummaryAccumulatorTest` | Done |
+| REP-04 | Delete-all-data extends to session history | Ch.4 §35.4 | `ReportingRepository.deleteAllSessions` | — | Done (untested: Room glue) |
+
+**Not yet built**: a presentation dashboard/history UI consuming `ReportingRepository.getAllSessions()`/`getRecentSessions()` — the data model and persistence are complete, but no screen renders them yet. Scoped into the Integration pass or a follow-up, not fabricated.
+
+Rows for the Onboarding module are added when it's implemented.
