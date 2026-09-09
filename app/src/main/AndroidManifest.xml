@@ -3,7 +3,12 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_HEALTH" />
+    <!-- Ch.3 Sec.30: continuous motion-sensor monitoring doesn't fit any of Android's predefined
+         foreground-service categories (it's not Health Connect biometric data, media, location,
+         etc.) -- "specialUse" is Android's designated category for exactly this case, and unlike
+         "health" it doesn't require any body-sensor/Health-Connect permission this app has no
+         reason to hold. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
@@ -41,7 +46,11 @@
         <service
             android:name=".session.MonitoringForegroundService"
             android:exported="false"
-            android:foregroundServiceType="health" />
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Continuous posture monitoring using the device's motion sensors (accelerometer/gyroscope only)" />
+        </service>
 
         <!-- Ch.11 Sec.19: automatic restart after device reboot, only when already onboarded. -->
         <receiver

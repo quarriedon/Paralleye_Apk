@@ -32,7 +32,17 @@ class MonitoringForegroundService : Service() {
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
-        startForeground(NOTIFICATION_ID, buildNotification())
+
+        // Ch.2 §34 "Error-Handling Principle": a foreground-service-type/permission mismatch
+        // (Android version-dependent, easy to get wrong, and it's already bitten this app once)
+        // must fail predictably rather than crash the whole process.
+        try {
+            startForeground(NOTIFICATION_ID, buildNotification())
+        } catch (error: Exception) {
+            ParallayeLogger.error("MonitoringForegroundService", "startForeground failed", error)
+            stopSelf()
+            return
+        }
 
         val manager = SessionManagerHolder.getInstance(applicationContext)
         sessionManager = manager
