@@ -226,11 +226,17 @@ enum class BaselineStatistic { MEAN, MEDIAN, TRIMMED_MEAN }
 
 data class CalibrationConfig(
     val baselineStatistic: BaselineStatistic,
+    /** Ch.4 §10: "the exact calibration duration is not specified... must remain configurable." */
+    val captureDurationMillis: Long,
+    /** Ch.4 §11: minimum valid samples required before a baseline is accepted. */
+    val minValidSamples: Int,
     val origin: ParameterOrigin,
 ) {
     companion object {
         val DEFAULT = CalibrationConfig(
             baselineStatistic = BaselineStatistic.MEAN,
+            captureDurationMillis = 8_000,
+            minValidSamples = 30,
             origin = ParameterOrigin.ENGINEERING_DEFAULT_UNVALIDATED,
         )
     }

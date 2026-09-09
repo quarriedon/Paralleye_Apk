@@ -27,6 +27,13 @@ speculatively ahead of the code existing.
 | SENS-10 | Startup stabilisation, orientation-transition pause | Ch.3 §13, §18 | `sensors.SensorFrameworkEngine` | — | Done (untested: Android glue) |
 | SENS-11 | Centralised sensor-framework configuration | Ch.3 §34 | `config.SensorFrameworkConfig` | — | Done |
 
-Rows for Calibration, Angle Interpretation, Activity, Dynamic Load, Recovery, Scoring,
-Adaptive Alert, Session Management, Reporting and Onboarding modules are added as each is
-implemented in later commits.
+| CAL-01 | User profile (age/gender/height) collection + validation | Ch.4 §5 | `domain.calibration.UserProfile`, `UserProfileValidator` | `UserProfileValidatorTest` | Done |
+| CAL-02 | Guided baseline capture, valid-samples-only accumulation | Ch.4 §9-11 | `domain.calibration.BaselineCaptureSession` | `BaselineCaptureSessionTest` | Done |
+| CAL-03 | Baseline statistic calculation (mean/median/trimmed mean) | Ch.4 §12 | `domain.calibration.BaselineCalculator` | `BaselineCalculatorTest` | Done |
+| CAL-04 | Baseline persistence, original-baseline immutability | Ch.4 §14, §24, §37 | `data.calibration.CalibrationRepository`, Room entities | — | Done (untested: Room glue) |
+| CAL-05 | Reset operations (new assessment archives, delete-all clears) | Ch.4 §35 | `CalibrationRepository.startNewBaselineAssessment/deleteAllCalibrationData` | — | Done (untested: Room glue); Reset Settings/Reset Behavioural Progress not yet applicable — no settings or adaptation state exist yet |
+| CAL-06 | Baseline/live-angle independence (no offset subtraction) | Ch.4 §15, §28-30 | Architectural — `BaselineProfile` is never read by any Ch.5-9 engine | — | Done by construction; revisit when those engines are implemented to confirm they stay that way |
+
+Rows for Angle Interpretation, Activity, Dynamic Load, Recovery, Scoring, Adaptive Alert,
+Session Management, Reporting and Onboarding modules are added as each is implemented in
+later commits.

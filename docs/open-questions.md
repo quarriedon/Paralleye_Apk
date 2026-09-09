@@ -33,6 +33,26 @@ listed here and the UI must never imply scientific validation where none exists.
    unresolved conflict between two chapters' stated values, not something to silently pick a
    side on.
 
+## Deliberately scoped out of this MVP build (not a silent omission)
+
+8. **Passive observation (Ch.4 §7.2, Model 2's second half).** Ch.4 §7.1 selects "guided
+   calibration followed by passive observation" as the approved model, but §7.2 explicitly
+   allows falling back to "the guided baseline with reduced confidence" while supplementary
+   data is still pending. This build implements guided baseline capture only
+   (`BaselineCaptureSession`) — background passive observation across days, activity-specific
+   baselines (§21), and portrait/landscape usage baselines (§22) are not implemented. The
+   `BaselineProfile` data class only carries the fields a guided-only capture actually
+   populates, rather than adding always-null fields for the unimplemented parts (per §13's own
+   instruction not to populate fields with fabricated values). Flagged for a follow-up build,
+   not silently dropped.
+
+9. **Behavioural Adaptation State (Ch.4 §25-26).** Ch.4 §26 explicitly permits a "basic
+   approved adaptation strategy" for the first build: store the baseline, use fixed load/score
+   calculations, use the baseline only for progress comparison, keep sensitivity presets. This
+   build does exactly that — no `BehaviourAdaptationState` progressive-goal structure exists
+   yet, consistent with §26's own MVP allowance rather than the more advanced adaptation the
+   chapter describes as a later increment.
+
 ## Needs physical-device confirmation
 
 6. **Device-angle axis convention (Ch.3 §7-§10).** The source formula θ = arccos(Z/|v|),
