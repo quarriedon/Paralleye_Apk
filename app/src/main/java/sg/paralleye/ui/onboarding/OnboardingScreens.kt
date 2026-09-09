@@ -154,6 +154,12 @@ fun GuidedCalibrationScreen(viewModel: OnboardingViewModel, onComplete: () -> Un
     val controller = remember { CalibrationCaptureController(context, viewModel.params) }
     val outcome by controller.outcome.collectAsState()
 
+    // Ch.3 §28: sensors must not remain registered once this screen is left, whether capture
+    // finished or the user simply navigated away (e.g. system back) mid-capture.
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        onDispose { controller.stop() }
+    }
+
     LaunchedEffect(Unit) { controller.start() }
 
     LaunchedEffect(outcome) {
