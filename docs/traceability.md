@@ -15,6 +15,18 @@ speculatively ahead of the code existing.
 | GOV-08 | Alert-state score ranges | Ch.10 | `config.AlertStateRanges` | — | Config only; Alert Engine not yet implemented |
 | GOV-09 | Sensitivity presets (Low/Medium/High) | Ch.2 §25 | `config.SensitivityAdjustment` | — | Config only; not yet wired to any engine |
 
-Rows for the Sensor Framework, Calibration, Angle Interpretation, Activity, Dynamic Load,
-Recovery, Scoring, Adaptive Alert, Session Management, Reporting and Onboarding modules are
-added as each is implemented in later commits.
+| SENS-01 | Objective device-angle calculation from accelerometer, clamped/validated | Ch.3 §7-§10 | `domain.measurement.DeviceAngleCalculator` | `DeviceAngleCalculatorTest` | Done — axis convention needs physical confirmation, see open-questions.md #6 |
+| SENS-02 | Portrait/landscape-left/landscape-right axis remapping | Ch.3 §16-§18 | `DeviceAngleCalculator.remapForOrientation` | `DeviceAngleCalculatorTest` | Done |
+| SENS-03 | Sensor fusion (complementary filter) | Ch.3 §11.4 | `domain.measurement.ComplementaryFilter` | `ComplementaryFilterTest` | Done |
+| SENS-04 | Transient-movement rejection | Ch.3 §14 | `domain.measurement.TransientMotionDetector` | `MotionDetectorsTest` | Done |
+| SENS-05 | Stable-posture qualification | Ch.3 §15 | `domain.measurement.StablePostureQualifier` | `MotionDetectorsTest` | Done |
+| SENS-06 | Measurement quality state | Ch.3 §27 | `domain.measurement.MeasurementQuality` | — | Done |
+| SENS-07 | Neck-flexion estimation (modular, disabled) | Ch.3 §20 | `domain.measurement.NeckFlexionEstimator` | — | Done — deliberately inert, see open-questions.md #1 |
+| SENS-08 | Sensor availability check, accelerometer-only fallback | Ch.3 §4 | `sensors.SensorFrameworkEngine` | — | Done (untested: Android SensorManager glue) |
+| SENS-09 | Timestamp-normalised interval validation, gap rejection | Ch.3 §5.3 | `sensors.SensorFrameworkEngine.processAccelerometerEvent` | — | Done (untested: Android glue) |
+| SENS-10 | Startup stabilisation, orientation-transition pause | Ch.3 §13, §18 | `sensors.SensorFrameworkEngine` | — | Done (untested: Android glue) |
+| SENS-11 | Centralised sensor-framework configuration | Ch.3 §34 | `config.SensorFrameworkConfig` | — | Done |
+
+Rows for Calibration, Angle Interpretation, Activity, Dynamic Load, Recovery, Scoring,
+Adaptive Alert, Session Management, Reporting and Onboarding modules are added as each is
+implemented in later commits.

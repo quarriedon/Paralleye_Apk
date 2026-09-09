@@ -33,6 +33,27 @@ listed here and the UI must never imply scientific validation where none exists.
    unresolved conflict between two chapters' stated values, not something to silently pick a
    side on.
 
+## Needs physical-device confirmation
+
+6. **Device-angle axis convention (Ch.3 §7-§10).** The source formula θ = arccos(Z/|v|),
+   taken with Android's standard accelerometer frame (Z = out of the screen face), reads
+   ≈90° when the phone is held vertically and ≈0° flat on a table — the opposite of the
+   spec's own stated anchors ("phone held vertically corresponds to 0°... increases as the
+   phone tilts backward toward horizontal"). `DeviceAngleCalculator` instead computes the
+   angle from the accelerometer's Y component (up-the-screen axis) after remapping for
+   screen orientation, which does satisfy both stated anchors. This is documented in the
+   class's KDoc and must be confirmed against the Ch.3 §8 physical test positions (vertical,
+   mild tilt, ~45°, near-horizontal, portrait/landscape-left/landscape-right) on a real
+   device — sideload the build and check that holding the phone upright reads near 0° and
+   tilting it flat increases toward ~90°, in all three supported orientations.
+
+7. **Gyroscope-to-angle-change approximation.** The complementary filter's "gyroscope
+   change" term is approximated as the integrated angular velocity around the remapped X
+   axis (`SensorFrameworkEngine.computeGyroChangeDegrees`) rather than a full 3D rotation
+   integration, since the source documents only describe a simplified 1D conceptual filter.
+   This is a reasonable approximation for a single-axis tilt estimate but should be checked
+   for drift/inaccuracy during extended physical-device testing (Ch.3 §35.4).
+
 ## Engineering interpretation (not a disputed methodology value)
 
 5. **Angle-load table lookup granularity.** The table in Ch.1 §11 is authored as whole-degree

@@ -45,6 +45,8 @@ data class ParallayeParameters(
 
     val calibration: CalibrationConfig = CalibrationConfig.DEFAULT,
 
+    val sensorFramework: SensorFrameworkConfig = SensorFrameworkConfig.DEFAULT,
+
     /**
      * Ch.3/4/5 explicitly instruct that the device-angle → neck-flexion transform is
      * methodologically unresolved and must be kept modular/disabled rather than guessed
@@ -236,3 +238,34 @@ data class CalibrationConfig(
 
 /** Placeholder slot only — see [ParallayeParameters.neckFlexionTransform] KDoc. Not wired to any engine yet. */
 data class NeckFlexionTransformConfig(val coefficient: Double, val origin: ParameterOrigin)
+
+/**
+ * Ch.3 §34 "Configuration Parameters". None of these values are specified in the source
+ * documents (Ch.3 §37 lists the sampling rate, filter method/coefficients and gravity
+ * tolerance as explicitly unresolved) — all are engineering defaults pending pilot tuning.
+ */
+data class SensorFrameworkConfig(
+    val requestedSamplingRateHz: Int,
+    val startupStabilisationMillis: Long,
+    val gravityToleranceMs2: Double,
+    val maxValidAngularVelocityDegPerSec: Double,
+    val stablePostureWindowSize: Int,
+    val stablePostureMaxVariationDegrees: Double,
+    val maxAcceptedSampleGapMillis: Long,
+    val orientationTransitionStabilisationMillis: Long,
+    val complementaryFilterAlpha: Double,
+) {
+    companion object {
+        val DEFAULT = SensorFrameworkConfig(
+            requestedSamplingRateHz = 50,
+            startupStabilisationMillis = 1_000,
+            gravityToleranceMs2 = 2.5,
+            maxValidAngularVelocityDegPerSec = 250.0,
+            stablePostureWindowSize = 5,
+            stablePostureMaxVariationDegrees = 3.0,
+            maxAcceptedSampleGapMillis = 500,
+            orientationTransitionStabilisationMillis = 600,
+            complementaryFilterAlpha = 0.90,
+        )
+    }
+}
