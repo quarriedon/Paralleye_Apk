@@ -9,11 +9,11 @@ speculatively ahead of the code existing.
 | GOV-02 | Configuration validation before monitoring begins | Ch.2 §35 | `config.ConfigValidator` | `ConfigValidatorTest` | Done |
 | GOV-03 | Structured cycle logging, privacy-redacted | Ch.2 §13, §33 | `logging.CycleRecord`, `logging.ParallayeLogger` | — | Done (untested: thin Android `Log` wrapper) |
 | GOV-04 | Non-linear angle-load mapping table | Ch.1 §11 | `config.AngleLoadTable` | `ConfigValidatorTest.angle-load lookup` | Done |
-| GOV-05 | Activity multiplier set selection (Patent Document values active) | Ch.1 §14, Ch.6 | `config.ActivityMultipliers` | — | Config only; Activity Engine not yet implemented |
-| GOV-06 | Recovery formula + Prompt Correction Signal parameters | Ch.1 §18, Ch.8 | `config.RecoveryConfig` | — | Config only; Recovery Engine not yet implemented |
-| GOV-07 | Score formula parameters | Ch.1 §19, Ch.9 | `config.ScoreConfig` | — | Config only; Scoring Engine not yet implemented |
-| GOV-08 | Alert-state score ranges | Ch.10 | `config.AlertStateRanges` | — | Config only; Alert Engine not yet implemented |
-| GOV-09 | Sensitivity presets (Low/Medium/High) | Ch.2 §25 | `config.SensitivityAdjustment` | — | Config only; not yet wired to any engine |
+| GOV-05 | Activity multiplier set selection (Patent Document values active) | Ch.1 §14, Ch.6 | `config.ActivityMultipliers`, used by `ActivityClassifier`/`SessionManager` | — | Done — wired in SessionManager.onSample |
+| GOV-06 | Recovery formula + Prompt Correction Signal parameters | Ch.1 §18, Ch.8 | `config.RecoveryConfig`, used by `RecoveryEngine` | `RecoveryEngineTest` | Done |
+| GOV-07 | Score formula parameters | Ch.1 §19, Ch.9 | `config.ScoreConfig`, used by `ScoringEngine` | `ScoringEngineTest` | Done |
+| GOV-08 | Alert-state score ranges | Ch.10 | `config.AlertStateRanges`, used by `AlertLevel` | `AlertLevelTest` | Done |
+| GOV-09 | Sensitivity presets (Low/Medium/High) | Ch.2 §25 | `config.SensitivityAdjustment`, used by `SessionManager` for reappearance timing | — | Partially wired — only affects Ch.10 reappearance interval so far; not yet exposed as a user-facing setting (no Settings screen exists), and not yet used for other sensitivity effects Ch.2 §25 lists (accumulation sensitivity, alert qualification timing) |
 
 | SENS-01 | Objective device-angle calculation from accelerometer, clamped/validated | Ch.3 §7-§10 | `domain.measurement.DeviceAngleCalculator` | `DeviceAngleCalculatorTest` | Done — axis convention needs physical confirmation, see open-questions.md #6 |
 | SENS-02 | Portrait/landscape-left/landscape-right axis remapping | Ch.3 §16-§18 | `DeviceAngleCalculator.remapForOrientation` | `DeviceAngleCalculatorTest` | Done |
@@ -39,9 +39,9 @@ speculatively ahead of the code existing.
 | ANG-03 | Zone-transition hysteresis (dead-band, angle itself untouched) | Ch.5 §44-45 | `domain.behaviour.ZoneTransitionGate` | `ZoneTransitionGateTest` | Done |
 | ANG-04 | Full decimal-precision boundary handling, no gaps/overlaps | Ch.5 §42-43 | `PostureZone.classify` | `AngleInterpretationEngineTest` | Done |
 
-| ACT-01 | Evidence-based activity classification, Unknown fallback | Ch.1 §12, Ch.2 §8-9, Ch.6 | `domain.behaviour.ActivityClassifier` | `ActivityClassifierTest` | Done (real Android UsageStatsManager signal gathering deferred to Session Management integration) |
+| ACT-01 | Evidence-based activity classification, Unknown fallback | Ch.1 §12, Ch.2 §8-9, Ch.6 | `domain.behaviour.ActivityClassifier` | `ActivityClassifierTest` | Classifier done; wired into `SessionManager.onSample` but fed a permanently-empty observation (keyboard/foreground-app signals not gathered), so every real cycle currently classifies Unknown — spec-compliant fallback (Ch.2 §9), not fabricated, but real UsageStatsManager/keyboard-state gathering is a follow-up, not yet built |
 | LOAD-01 | Dynamic Load Increment formula, timestamp-normalised | Ch.1 §15, Ch.2 §11 | `domain.behaviour.DynamicLoadEngine` | `DynamicLoadEngineTest` | Done — resolves open-questions.md #10 |
-| LOAD-02 | Cumulative Load accumulation, zero floor | Ch.1 §16, Ch.8 Rule 7 | `domain.behaviour.CumulativeLoadEngine` | `CumulativeLoadEngineTest` | Done; session reset ownership belongs to Ch.11 |
+| LOAD-02 | Cumulative Load accumulation, zero floor | Ch.1 §16, Ch.8 Rule 7 | `domain.behaviour.CumulativeLoadEngine` | `CumulativeLoadEngineTest` | Done; one instance per `SessionManager`, naturally resets when a new session starts, preserved across pause/resume within a session per Ch.11 §26-27 |
 | REC-01 | Recovery formula, continuous per-cycle evaluation (no min-duration gate) | Ch.8 §12-13, §23 | `domain.behaviour.RecoveryEngine` | `RecoveryEngineTest` | Done |
 | REC-02 | Prompt Correction Signal +5 bonus, applied by Recovery not Alert Engine | Ch.8 Rule 8 | `RecoveryEngine.applyPromptCorrectionBonus` | `RecoveryEngineTest` | Done; signal emission is Ch.10's responsibility (not yet implemented) |
 | SCORE-01 | Score formula, clamped, silent while suspended | Ch.9 | `domain.behaviour.ScoringEngine` | `ScoringEngineTest` | Done |
@@ -49,7 +49,7 @@ speculatively ahead of the code existing.
 | ALERT-01 | Score-driven alert-level classification | Ch.10 §22, §26.1 | `domain.alert.AlertLevel` | `AlertLevelTest` | Done |
 | ALERT-02 | Dismissal hides mascot without affecting load/score; never confused with correction | Ch.10 §29, §36, §49 | `domain.alert.AdaptiveAlertEngine` | `AdaptiveAlertEngineTest` | Done |
 | ALERT-03 | Reappearance shows current level, cancels if corrected first | Ch.10 §30-31, §35 | `AdaptiveAlertEngine.onCycle` | `AdaptiveAlertEngineTest` | Done |
-| ALERT-04 | Prompt Correction Signal (once per Full-Alert episode, within window) | Ch.10 §32.1 | `AdaptiveAlertEngine.onCycle` | `AdaptiveAlertEngineTest` | Done; consumed by `RecoveryEngine.applyPromptCorrectionBonus` — wiring the two together happens in the Integration pass |
+| ALERT-04 | Prompt Correction Signal (once per Full-Alert episode, within window) | Ch.10 §32.1 | `AdaptiveAlertEngine.onCycle` | `AdaptiveAlertEngineTest` | Done — wired to `RecoveryEngine.applyPromptCorrectionBonus` in `SessionManager.onSample` |
 | ALERT-05 | Fixed upper-left corner presentation, tap-to-dismiss | Ch.10 §38, §43 | `ui.mascot.MsAngleAngelOverlay` | — | Done (untested: Compose UI); full rigged animation deferred, see open-questions.md #11 |
 
 | SESS-01 | Operational state machine (Init/Ready/Active/Paused/Completed) | Ch.11 §22-31 | `session.MonitoringState`, `session.SessionManager` | — | Done (untested: entangled with Android Context/SensorManager/Room; no Robolectric in this build) |
