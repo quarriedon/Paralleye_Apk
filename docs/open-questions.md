@@ -76,6 +76,19 @@ listed here and the UI must never imply scientific validation where none exists.
     reading of §40's explicit optionality, not a silent shortcut. Upgrading to true
     per-frame/Lottie animation is a follow-up, not a correctness gap.
 
+## Not yet built (Functional Spec systems)
+
+12. **Settings screen (Functional Spec System 11).** Sensitivity levels
+    (Low/Medium/High), notification preferences, permission status, privacy info, and the
+    data-reset actions (`CalibrationRepository`/`ReportingRepository` already implement the
+    underlying reset/delete operations — Ch.4 §35) all lack a UI. Sensitivity is currently
+    hardcoded to `MEDIUM` in `SessionManager`. Not fabricated as done anywhere — flagged here
+    as the clearest remaining gap against the Functional Spec.
+
+13. **History dashboard (Functional Spec System 10).** Daily/weekly/monthly summaries and
+    baseline comparison views have no UI — `ReportingRepository.getAllSessions()`/
+    `getRecentSessions()` return the stored data, but nothing renders it yet.
+
 ## Needs physical-device confirmation
 
 6. **Device-angle axis convention (Ch.3 §7-§10).** The source formula θ = arccos(Z/|v|),
