@@ -12,6 +12,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -33,8 +36,10 @@ import sg.paralleye.data.db.ParallayeDatabase
 import sg.paralleye.domain.alert.MascotVisibility
 import sg.paralleye.session.MonitoringForegroundService
 import sg.paralleye.session.SessionManagerHolder
+import sg.paralleye.ui.history.HistoryScreen
 import sg.paralleye.ui.mascot.MsAngleAngelOverlay
 import sg.paralleye.ui.onboarding.OnboardingNavHost
+import sg.paralleye.ui.settings.SettingsScreen
 
 /**
  * Ch.11 §15, §20 "Application Startup": on every launch, checks whether onboarding has already
@@ -71,7 +76,7 @@ private fun AppRoot() {
         when (check) {
             OnboardingCheck.LOADING -> LoadingScreen()
             OnboardingCheck.REQUIRED -> OnboardingNavHost(onOnboardingComplete = { check = OnboardingCheck.COMPLETE })
-            OnboardingCheck.COMPLETE -> MonitoringActiveScreen()
+            OnboardingCheck.COMPLETE -> MainTabs()
         }
     }
 }
@@ -80,6 +85,41 @@ private fun AppRoot() {
 private fun LoadingScreen() {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         CircularProgressIndicator()
+    }
+}
+
+private enum class MainTab(val label: String) {
+    MONITOR("Monitor"),
+    HISTORY("History"),
+    SETTINGS("Settings"),
+}
+
+/** Functional Spec Systems 9-11: the three top-level screens once onboarding is done. */
+@Composable
+private fun MainTabs() {
+    var selectedTab by remember { mutableStateOf(MainTab.MONITOR) }
+
+    Scaffold(
+        bottomBar = {
+            NavigationBar {
+                MainTab.entries.forEach { tab ->
+                    NavigationBarItem(
+                        selected = selectedTab == tab,
+                        onClick = { selectedTab = tab },
+                        icon = {},
+                        label = { Text(tab.label) },
+                    )
+                }
+            }
+        },
+    ) { innerPadding ->
+        Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
+            when (selectedTab) {
+                MainTab.MONITOR -> MonitoringActiveScreen()
+                MainTab.HISTORY -> HistoryScreen()
+                MainTab.SETTINGS -> SettingsScreen()
+            }
+        }
     }
 }
 
