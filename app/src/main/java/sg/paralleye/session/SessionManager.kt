@@ -1,6 +1,7 @@
 package sg.paralleye.session
 
 import android.content.Context
+import android.os.SystemClock
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -71,6 +72,7 @@ class SessionManager(
     private val alertEngine = AdaptiveAlertEngine()
     private val sessionSummaryAccumulator = SessionSummaryAccumulator()
     private var lastSampleTimestampNanos: Long? = null
+    private var lastDiagnosticLogElapsedMillis: Long = 0L
 
     private val _cycleResults = MutableStateFlow<PipelineCycleResult?>(null)
     val cycleResults: StateFlow<PipelineCycleResult?> = _cycleResults.asStateFlow()
@@ -142,9 +144,22 @@ class SessionManager(
         scope.cancel()
     }
 
+    /**
+     * Ch.10 §29-31: must use the same clock base as [onSample]'s `nowMillis` -- [AdaptiveAlertEngine]
+     * compares the two directly to decide when to reappear. `onSample`'s `nowMillis` comes from
+     * [android.hardware.SensorEvent.timestamp], which Android documents as using the
+     * `elapsedRealtimeNanos()` time base (boot-relative), never wall-clock epoch time. This
+     * previously called `System.currentTimeMillis()` (epoch) here -- a real bug, not a unit-test
+     * gap: `AdaptiveAlertEngineTest` only ever passes matching synthetic timestamps to the engine
+     * directly, so it can't see a mismatch that only exists between two different Android clock
+     * APIs at this integration point. In practice `waitingUntilMillis` (epoch-scale, ~10^12) was
+     * always vastly larger than any boot-relative `nowMillis` the engine would ever see again, so
+     * `nowMillis >= waitUntil` was never true -- the mascot never reappeared after being tapped,
+     * for any reason, ever, regardless of reappearanceIntervalSeconds or subsequent posture.
+     */
     fun onMascotTapped() {
         val sensitivity = params.sensitivityPresets.getValue(sensitivityLevel)
-        alertEngine.onMascotTapped(System.currentTimeMillis(), sensitivity.reappearanceIntervalSeconds * 1000L)
+        alertEngine.onMascotTapped(SystemClock.elapsedRealtime(), sensitivity.reappearanceIntervalSeconds * 1000L)
     }
 
     private fun onSample(sample: MeasurementSample) {
@@ -239,5 +254,20 @@ class SessionManager(
             score = score,
             alertVisibility = alertResult.visibility,
         )
+
+        // Debugging aid, not part of the methodology: "score stuck, doesn't recover" is hard to
+        // diagnose blind without knowing what angle the app actually measured at the time --
+        // Ch.3 open-questions.md #6 already flags the device-angle axis convention as needing
+        // physical-device confirmation, and a wrong axis would look exactly like this (recovery
+        // requires angle < 20 deg, so if "upright" isn't reading that way, it never engages).
+        // Throttled to once per 5s of elapsed time so it doesn't flood the diagnostics file.
+        val elapsedNow = android.os.SystemClock.elapsedRealtime()
+        if (elapsedNow - lastDiagnosticLogElapsedMillis >= 5000) {
+            lastDiagnosticLogElapsedMillis = elapsedNow
+            OverlayDiagnosticLog.log(
+                "cycle angle=${"%.1f".format(angle)} zone=$effectiveZone load=${"%.1f".format(cumulativeLoad.currentLoad)} " +
+                    "recoveryThisCycle=${"%.2f".format(recoveryThisCycle)} score=$score",
+            )
+        }
     }
 }

@@ -7,14 +7,15 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * Debugging aid, not part of the PARALLEYE methodology: writes a small, readable trail of the
- * background-mascot-overlay decision path to a file under the app's external files directory
- * (browsable via the phone's own file manager, no adb/PC needed) — the same workaround already
- * used for [sg.paralleye.ParallayeApplication]'s crash reporter, for the same reason: this
- * environment has no way to reproduce "the overlay doesn't appear when backgrounded" on a real
- * device, and guessing at a cause without seeing what actually happened has a poor track record.
- * Logs only on a state change (app visibility flips, or the mascot's own visibility changes),
- * not every sensor cycle, to stay small and readable rather than flooding the file.
+ * Debugging aid, not part of the PARALLEYE methodology: writes a small, readable trail to a
+ * file under the app's external files directory (browsable via the phone's own file manager,
+ * no adb/PC needed) — the same workaround already used for [sg.paralleye.ParallayeApplication]'s
+ * crash reporter, for the same reason: this environment has no way to reproduce on-device-only
+ * bugs directly, and guessing at a cause without seeing what actually happened has a poor track
+ * record. Originally just the background-mascot-overlay decision path (name kept for that),
+ * now also carries a throttled angle/load/score trail from [SessionManager.onSample] for
+ * diagnosing score/recovery reports the same way. Callers throttle their own entries (state
+ * changes only, or time-throttled) so this stays small and readable rather than flooding.
  */
 object OverlayDiagnosticLog {
     private const val MAX_LINES = 200
