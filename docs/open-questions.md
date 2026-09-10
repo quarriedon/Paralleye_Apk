@@ -34,6 +34,24 @@ listed here and the UI must never imply scientific validation where none exists.
     it satisfies Ch.2 §11's explicit instruction. Not a disputed methodology number: Ch.2 §11
     itself describes exactly this technique as an acceptable robust implementation.
 
+## Build infrastructure (not a methodology question)
+
+15. **Unstable debug-build signing key across CI runs, now fixed.** Found while investigating a
+    user report that two already-pushed, CI-green fixes (the mascot mirror direction, the
+    background overlay) still weren't visible after reinstalling. The project had no checked-in
+    signing config, so debug builds fell back to AGP's default: generate
+    `~/.android/debug.keystore` with a fresh random key if one doesn't already exist. Every
+    GitHub Actions run is a fresh, ephemeral runner with no such file, so every CI build was
+    signed with a *different* random key. Sideloading a new debug APK over an install with a
+    different signature silently fails — Android just refuses the update — leaving whatever was
+    already installed untouched. From the outside that looks exactly like "the fix isn't
+    landing," run after run, with no error surfaced anywhere in this conversation to catch it.
+    Fixed by generating `app/debug.keystore` once (same conventions AGP's own default uses --
+    zero security value, never used for release) and pointing `buildTypes.debug` at it
+    explicitly, so every future CI build is signed identically and updates install in place.
+    The build that introduced this fix still needs one full uninstall to get onto the new
+    stable key; nothing after it should.
+
 ## Checked, no conflict found
 
 4. **Angle-Load table vs. Posture Zone boundary revision.** Ch.1's revision note says the
