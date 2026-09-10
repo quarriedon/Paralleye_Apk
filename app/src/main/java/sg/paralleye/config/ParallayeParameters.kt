@@ -194,6 +194,16 @@ data class AlertStateRanges(
     val peelMin: Int,
     val fullAlertMin: Int,
     val origin: ParameterOrigin,
+    /**
+     * Ch.10 §44-equivalent dead-band, mirroring [ZoneThresholds.hysteresisMarginDegrees]'s
+     * already-established pattern: a score oscillating a point or two around a boundary (e.g.
+     * 74/75) previously flipped [sg.paralleye.domain.alert.AlertLevel] -- and therefore the
+     * mascot frame -- every single cycle, reported as the alert "seeming glitchy." Not a filed
+     * methodology constant; applied in [sg.paralleye.domain.alert.AdaptiveAlertEngine], never
+     * in [sg.paralleye.domain.alert.AlertLevel.classify] itself, so that function stays the
+     * pure score classifier Ch.10 §26.1 describes.
+     */
+    val hysteresisMarginPoints: Int = 3,
 ) {
     companion object {
         val DEFAULT = AlertStateRanges(
@@ -202,6 +212,7 @@ data class AlertStateRanges(
             peelMin = 25,
             fullAlertMin = 0,
             origin = ParameterOrigin.TECHNICAL_METHODOLOGY_RESOLUTION,
+            hysteresisMarginPoints = 3,
         )
     }
 }

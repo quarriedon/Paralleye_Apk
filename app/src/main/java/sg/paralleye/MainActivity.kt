@@ -135,6 +135,20 @@ private fun MonitoringActiveScreen() {
     val sessionManager = remember { SessionManagerHolder.getInstance(context) }
     val cycleResult by sessionManager.cycleResults.collectAsState()
 
+    // Display-only throttle. The pipeline emits at the full Ch.3 sensor sampling rate --
+    // correct, and unchanged, for scoring/alerts -- but redrawing the angle number that fast
+    // reads as flickery to a human eye even though the underlying value is already smoothed
+    // (ComplementaryFilter). This only slows how often the *same* already-correct value gets
+    // redrawn as text; it touches no measurement, scoring or alert logic, and the mascot
+    // overlay below still binds to the full-rate cycleResult directly.
+    var displayedResult by remember { mutableStateOf(cycleResult) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            displayedResult = sessionManager.cycleResults.value
+            kotlinx.coroutines.delay(250)
+        }
+    }
+
     LaunchedEffect(Unit) {
         val serviceIntent = Intent(context, MonitoringForegroundService::class.java)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -154,7 +168,7 @@ private fun MonitoringActiveScreen() {
                 "You can put your phone away — Ms Angle Angel will check in if it's worth a stretch.",
                 modifier = Modifier.padding(top = 8.dp),
             )
-            val result = cycleResult
+            val result = displayedResult
             if (result != null) {
                 Text("Score: ${result.score}", modifier = Modifier.padding(top = 24.dp))
                 Text("Angle: %.1f°".format(result.angleDegrees))

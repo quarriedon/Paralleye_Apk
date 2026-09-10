@@ -134,4 +134,32 @@ class AdaptiveAlertEngineTest {
         val result = engine.onCycle(80, ranges, nowMillis = 1_000, reappear, promptWindow)
         assertFalse(result.promptCorrectionSignal)
     }
+
+    @Test
+    fun `small oscillation around a score boundary does not flip the alert level every cycle`() {
+        val engine = AdaptiveAlertEngine()
+        engine.onCycle(40, ranges, nowMillis = 0, reappear, promptWindow) // Peel
+        // 50/49 straddle the Peek/Peel boundary but never clear the 3-point margin.
+        assertEquals(AlertLevel.PEEL, engine.onCycle(50, ranges, nowMillis = 100, reappear, promptWindow).level)
+        assertEquals(AlertLevel.PEEL, engine.onCycle(48, ranges, nowMillis = 200, reappear, promptWindow).level)
+        assertEquals(AlertLevel.PEEL, engine.onCycle(51, ranges, nowMillis = 300, reappear, promptWindow).level)
+    }
+
+    @Test
+    fun `alert level transition registers once the score margin is cleared`() {
+        val engine = AdaptiveAlertEngine()
+        engine.onCycle(40, ranges, nowMillis = 0, reappear, promptWindow) // Peel
+        val result = engine.onCycle(54, ranges, nowMillis = 100, reappear, promptWindow) // clears 50+3
+        assertEquals(AlertLevel.PEEK, result.level)
+    }
+
+    @Test
+    fun `dropping back below the lower margin re-enters the worse level`() {
+        val engine = AdaptiveAlertEngine()
+        engine.onCycle(54, ranges, nowMillis = 0, reappear, promptWindow) // Peek
+        val stillPeek = engine.onCycle(48, ranges, nowMillis = 100, reappear, promptWindow) // Peel raw, margin not cleared
+        assertEquals(AlertLevel.PEEK, stillPeek.level)
+        val nowPeel = engine.onCycle(46, ranges, nowMillis = 200, reappear, promptWindow) // clears 50-3
+        assertEquals(AlertLevel.PEEL, nowPeel.level)
+    }
 }

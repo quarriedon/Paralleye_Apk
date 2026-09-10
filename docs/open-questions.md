@@ -126,6 +126,42 @@ listed here and the UI must never imply scientific validation where none exists.
     class is safe to drive from any thread. This is the concrete payoff of adding
     `OverlayDiagnosticLog` instead of guessing a fourth time.
 
+    **Two more character-art rounds, plus a genuinely new bug.** The client replaced the
+    source character twice more (a branded-hoodie redesign, then a higher-resolution version
+    of the same character sized up per "not dim and small, up to 30 percent of that
+    quadrant" — `MASCOT_WIDTH_DP`/`MASCOT_HEIGHT_DP` and `MsAngleAngelOverlay`'s height roughly
+    doubled both times; see traceability.md ALERT-05 (6)/(7)). Both of those source PNGs had
+    genuine native alpha, so neither needed the matting rework above. A third character image
+    did *not* — despite looking identical to a real transparent PNG in every preview (this
+    tool's image previews render real alpha as a checkerboard, and this file had a checkerboard
+    of near-white/near-gray squares baked into its actual pixels at full opacity, not real
+    alpha at all; confirmed via `alpha.getbbox()` returning the full image and every pixel
+    reading alpha=255). Naive re-use of the color-threshold-plus-border-flood-fill approach
+    from above failed differently this time: this character wears a white hoodie, close in
+    color to the checkerboard's light tile, so a plain "near this reference color" classifier
+    connected the hoodie straight through to the border-touching background and made large
+    patches of it transparent too (only caught by compositing the matted result over solid
+    magenta and inspecting it — compositing over checkerboard-pattern transparency is visually
+    indistinguishable from the *source's own baked-in fake checkerboard* and would have hidden
+    this). Fixed by classifying "background" as pixels where *both* a near-white and a
+    near-gray tile color co-occur within a small window (the checkerboard's actual signature —
+    tiles ~10-11px, alternating) rather than matching either color alone, which large uniform
+    subject regions like the hoodie don't trigger. Also found and fixed, on the same report:
+    (i) a genuine sequencing bug in `MascotOverlayController` — `ImageView.ScaleType.
+    FIT_CENTER` centers each cropped frame *within* its fixed-size window box, so narrower
+    PEEK/PEEL crops rendered floating away from the true right edge and visibly slid toward it
+    as later, wider frames filled more of the box; switched to `FIT_END` to pin every frame to
+    the box's own right edge, matching its `Gravity.END` window anchor (the in-app Compose
+    overlay was never affected, since its `Box` sizes to its child rather than a fixed box);
+    (ii) the reveal-order crop fractions themselves were picked by feel rather than checked
+    against the actual source content, and cut through the middle of an eye at the first
+    stage ("looks scary"). The client specified the intended anatomical sequence directly
+    (hair + right ear + right eye, then the right half of the face, then the full face); the
+    fractions actually used for this source (30% / 45% / 100% of content-bbox width) were
+    chosen by rendering several candidates and inspecting them, not guessed from the
+    percentage alone, since the right crop fraction depends entirely on where a given source
+    image's face sits relative to its own right edge.
+
 ## Checked, no conflict found
 
 4. **Angle-Load table vs. Posture Zone boundary revision.** Ch.1's revision note says the

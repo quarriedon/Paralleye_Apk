@@ -112,7 +112,13 @@ class MascotOverlayController(private val context: Context, private val config: 
             y = (config.cornerOffsetYDp * density).toInt()
         }
         return ImageView(context).apply {
-            scaleType = ImageView.ScaleType.FIT_CENTER
+            // FIT_CENTER was the actual cause of a reported sequencing glitch: it centers a
+            // frame *within* the fixed-size box, so the narrow PEEK/PEEL crops floated away
+            // from the true right edge and visibly slid toward it as later frames widened to
+            // fill more of the box -- not a crop-order bug, a scale-type bug. FIT_END aligns
+            // each frame to the box's own right edge, matching the window's Gravity.END anchor
+            // so every frame's right edge lands in the same place regardless of its width.
+            scaleType = ImageView.ScaleType.FIT_END
             setOnClickListener { onTapped?.invoke() }
             contentDescription = "Ms Angle Angel posture reminder"
             windowManager.addView(this, params)

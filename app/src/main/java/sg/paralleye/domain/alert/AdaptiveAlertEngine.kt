@@ -32,6 +32,14 @@ class AdaptiveAlertEngine {
     private var fullAlertEnteredAtMillis: Long? = null
     private var promptCorrectionConsumedForCurrentFullAlert = false
 
+    // A score sitting right on a boundary (e.g. 74/75) previously flipped AlertLevel, and
+    // therefore the mascot frame, every single cycle -- reported as the alert "seeming
+    // glitchy." Gated here rather than in AlertLevel.classify, mirroring how
+    // ZoneTransitionGate wraps AngleInterpretationEngine's zone classification without
+    // touching it: classify() stays the pure function of score Ch.10 §26.1 describes, this
+    // is purely a presentation-layer dead-band, same as ZoneTransitionGate is for zones.
+    private var effectiveLevel: AlertLevel? = null
+
     fun onCycle(
         score: Int,
         ranges: AlertStateRanges,
@@ -39,7 +47,7 @@ class AdaptiveAlertEngine {
         reappearanceIntervalMillis: Long,
         promptCorrectionWindowMillis: Long,
     ): AlertCycleResult {
-        val level = AlertLevel.classify(score, ranges)
+        val level = gatedLevel(AlertLevel.classify(score, ranges), score, ranges)
         val postureJustCorrected = level == AlertLevel.IDLE && previousLevel != AlertLevel.IDLE
 
         // Ch.10 §32.1: Prompt Correction Signal — reaching Idle within the window of first
@@ -100,5 +108,41 @@ class AdaptiveAlertEngine {
         wasVisible = false
         fullAlertEnteredAtMillis = null
         promptCorrectionConsumedForCurrentFullAlert = false
+        effectiveLevel = null
+    }
+
+    private fun gatedLevel(rawLevel: AlertLevel, score: Int, ranges: AlertStateRanges): AlertLevel {
+        val current = effectiveLevel
+        if (current == null || current == rawLevel) {
+            effectiveLevel = rawLevel
+            return rawLevel
+        }
+        // Same "boundary crossed by margin, not merely crossed" rule as ZoneTransitionGate,
+        // just score-based: rawLevel more severe (higher ordinal) needs score to have dropped
+        // meaningfully below current's own threshold; rawLevel milder needs score to have
+        // risen meaningfully above the next-milder level's own threshold.
+        val crossedWithMargin = when {
+            rawLevel.ordinal > current.ordinal -> score < levelMin(current, ranges) - ranges.hysteresisMarginPoints
+            rawLevel.ordinal < current.ordinal -> score > levelMin(nextMilder(current), ranges) + ranges.hysteresisMarginPoints
+            else -> true
+        }
+        if (crossedWithMargin) {
+            effectiveLevel = rawLevel
+        }
+        return effectiveLevel!!
+    }
+
+    private fun levelMin(level: AlertLevel, ranges: AlertStateRanges): Int = when (level) {
+        AlertLevel.IDLE -> ranges.idleMin
+        AlertLevel.PEEK -> ranges.peekMin
+        AlertLevel.PEEL -> ranges.peelMin
+        AlertLevel.FULL_ALERT -> ranges.fullAlertMin
+    }
+
+    private fun nextMilder(level: AlertLevel): AlertLevel = when (level) {
+        AlertLevel.IDLE -> AlertLevel.IDLE // already mildest; unused (rawLevel can't be milder than IDLE)
+        AlertLevel.PEEK -> AlertLevel.IDLE
+        AlertLevel.PEEL -> AlertLevel.PEEK
+        AlertLevel.FULL_ALERT -> AlertLevel.PEEL
     }
 }
