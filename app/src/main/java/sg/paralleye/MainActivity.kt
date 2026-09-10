@@ -165,6 +165,7 @@ private fun MonitoringActiveScreen() {
             visibility = cycleResult?.alertVisibility ?: MascotVisibility.Hidden,
             config = ParallayeParameters.PROVISIONAL.mascot,
             onTapped = { sessionManager.onMascotTapped() },
+            modifier = Modifier.align(Alignment.TopEnd),
         )
     }
 }

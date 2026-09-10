@@ -17,9 +17,17 @@ import sg.paralleye.config.MascotConfig
 import sg.paralleye.domain.alert.MascotVisibility
 
 /**
- * Ch.10 §38: fixed upper-left corner anchor, never repositioned. Ch.10 §13/§43: tap
- * immediately dismisses, no confirmation dialog. Ch.10 §42: smooth transition between states
+ * Fixed right-edge anchor, never repositioned. Ch.10 §38 text says upper-left ("shall always
+ * emerge from the upper-left corner... shall not appear from the right side"), but the actual
+ * commissioned reference app the client had a separate team build anchors it to the right edge
+ * — confirmed from that app's own screenshots, both in-app and as a system overlay over other
+ * apps. Following the reference over the written text here on explicit client instruction; the
+ * conflict is recorded in docs/open-questions.md rather than silently overridden. Ch.10 §13/§43:
+ * tap immediately dismisses, no confirmation dialog. Ch.10 §42: smooth transition between states
  * (a Crossfade rather than the full corner-peel rig — see MascotFrame's KDoc on scope).
+ *
+ * Caller must place this with `Modifier.align(Alignment.TopEnd)` in a Box — the offset here is
+ * an inset from that anchor, not an absolute position.
  */
 @Composable
 fun MsAngleAngelOverlay(
@@ -28,7 +36,7 @@ fun MsAngleAngelOverlay(
     onTapped: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Box(modifier = modifier.offset(x = config.cornerOffsetXDp.dp, y = config.cornerOffsetYDp.dp)) {
+    Box(modifier = modifier.offset(x = -config.cornerOffsetXDp.dp, y = config.cornerOffsetYDp.dp)) {
         Crossfade(
             targetState = visibility,
             animationSpec = tween(durationMillis = config.appearanceAnimationMillis.toInt()),

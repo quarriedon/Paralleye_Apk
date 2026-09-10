@@ -74,7 +74,9 @@ class MascotOverlayController(private val context: Context, private val config: 
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
             PixelFormat.TRANSLUCENT,
         ).apply {
-            gravity = Gravity.TOP or Gravity.START
+            // Right edge, not left -- see MsAngleAngelOverlay's KDoc for why this follows the
+            // commissioned reference app over Ch.10 §38's written "upper-left" text.
+            gravity = Gravity.TOP or Gravity.END
             x = (config.cornerOffsetXDp * density).toInt()
             y = (config.cornerOffsetYDp * density).toInt()
         }

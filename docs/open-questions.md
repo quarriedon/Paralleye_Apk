@@ -52,6 +52,29 @@ listed here and the UI must never imply scientific validation where none exists.
     The build that introduced this fix still needs one full uninstall to get onto the new
     stable key; nothing after it should.
 
+## Client instruction overriding written spec (recorded, not silent)
+
+16. **Mascot anchored right, not left; phone-bezel mockup removed from the actual assets.**
+    Ch.10 §38 is unambiguous: "Ms Angle Angel shall always emerge from the upper-left corner
+    of the active application screen... shall not appear from the right side." The client
+    separately commissioned a full build of this same app from a different, 4-developer team,
+    and shared screenshots of that build directly (in-app, on the home screen, and as a
+    system overlay drawn on top of a running YouTube video) showing the mascot anchored to
+    the **right** edge of the screen every time, with a clean transparent character cutout
+    and no phone-shaped frame around her. On explicit instruction ("I need to replicate this
+    in our build"), `MsAngleAngelOverlay` and `MascotOverlayController` were both moved to
+    `Alignment.TopEnd`/`Gravity.END`. This directly contradicts Ch.10 §38's text — flagged
+    here per Ch.2 §3 rather than silently changed, since the written methodology and the
+    client's own reference implementation now disagree and only the client can settle which
+    one is authoritative going forward. Also cropped the phone-bezel mockup out of the three
+    actually-used frames (`ms_angle_angel_03/04/06`) and added alpha transparency via a
+    distance-from-background-color threshold, since the source PNGs were fully opaque with no
+    alpha channel. This is a semi-automated approximation, not real alpha-matted source art —
+    edges (especially hair) may show minor fringing up close, and it was only verified by
+    rendering each frame against a solid test background and inspecting the result, not on an
+    actual device. If the client's reference app's actual asset files are ever available,
+    those should replace this approximation rather than refining it further by hand.
+
 ## Checked, no conflict found
 
 4. **Angle-Load table vs. Posture Zone boundary revision.** Ch.1's revision note says the
