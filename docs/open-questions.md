@@ -75,6 +75,40 @@ listed here and the UI must never imply scientific validation where none exists.
     actual device. If the client's reference app's actual asset files are ever available,
     those should replace this approximation rather than refining it further by hand.
 
+    **Follow-up round, same root cause pattern.** Device testing confirmed the right-edge
+    anchor fix worked, but found two more real bugs in the same crop/transparency approach:
+    (a) the color-distance alpha threshold left the peel-paper's shadow gradient partially
+    opaque — it faded but never fully disappeared, reading as a faint ghost shape. Switched to
+    a border-flood-fill approach instead (`scipy.ndimage.label`): only background pixels
+    *connected to the image's outer edge* become transparent, with a short geometric distance
+    ramp (not a color-distance ramp) for anti-aliasing at the true silhouette edge. This also
+    fixes a related failure mode the naive color/saturation approach hit first — treating eye
+    whites and teeth as "background" because they're pale and desaturated too, which a pure
+    global-color threshold can't distinguish from the real background but a border-connectivity
+    check can (they're enclosed by the face, not touching the image edge). (b) the crop was
+    re-done tighter (character-only bounding box, no more peel-curl padding) — which
+    *narrowed* each frame's aspect ratio, and since both renderers previously forced every
+    frame into a fixed **square** box, the narrower image actually rendered smaller than
+    before despite the tighter crop, reading as "very tiny." Both `MsAngleAngelOverlay` (now
+    a fixed height with width following each frame's own intrinsic aspect ratio) and
+    `MascotOverlayController` (now a fixed 85x130dp box, close to but not exactly matching
+    each frame's aspect, since a WindowManager window can't cheaply auto-follow aspect ratio
+    the way Compose can without resizing it on every frame change) were changed to stop
+    forcing a square.
+
+    "Background monitoring doesn't work when minimized" was also reported again after this
+    round, for the third time, following a real fix each of the first two times (the FGS-type
+    crash, then the missing system overlay). Rather than guess a third specific cause blind,
+    added `session.OverlayDiagnosticLog` — a small on-device trail (readable in Settings, or
+    at `Android/data/sg.paralleye/files/diagnostics/overlay_diagnostics.txt` via a file
+    manager) recording activity start/stop transitions, `initialise()`'s outcome, wake lock
+    acquisition, and every app-visibility/mascot-visibility state change the overlay decision
+    logic sees — including whether the service's `onDestroy()` ever runs (if the process is
+    killed outright rather than stopped gracefully, the file simply stops mid-stream, which is
+    itself diagnostic). This sandbox has no physical device to reproduce this on; the next
+    report on this specific issue should come with this file's contents rather than another
+    guess from either side.
+
 ## Checked, no conflict found
 
 4. **Angle-Load table vs. Posture Zone boundary revision.** Ch.1's revision note says the

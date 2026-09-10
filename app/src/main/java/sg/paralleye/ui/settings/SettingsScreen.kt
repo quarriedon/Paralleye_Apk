@@ -8,7 +8,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -31,9 +35,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -62,6 +68,7 @@ fun SettingsScreen() {
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var deleteComplete by remember { mutableStateOf(false) }
     var batteryOptimizationExempt by remember { mutableStateOf(PermissionChecker.isIgnoringBatteryOptimizations(context)) }
+    var diagnosticsText by remember { mutableStateOf(readOverlayDiagnostics(context)) }
 
     LaunchedEffect(Unit) {
         val calibrationRepository = CalibrationRepository(ParallayeDatabase.getInstance(context).calibrationDao())
@@ -69,12 +76,15 @@ fun SettingsScreen() {
     }
 
     // The exemption dialog is a separate system Activity -- re-check when the user comes back
-    // to this screen rather than only once on first composition.
+    // to this screen rather than only once on first composition. Diagnostics are refreshed the
+    // same way, so returning from backgrounding the app (the case they're meant to explain)
+    // shows the latest entries without needing to leave and reopen Settings.
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 batteryOptimizationExempt = PermissionChecker.isIgnoringBatteryOptimizations(context)
+                diagnosticsText = readOverlayDiagnostics(context)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -140,6 +150,33 @@ fun SettingsScreen() {
 
         HorizontalDivider(modifier = Modifier.padding(vertical = 24.dp))
 
+        Text(
+            "Diagnostics",
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(bottom = 4.dp),
+        )
+        Text(
+            "A running record of the background-mascot decision path (whether the app is in " +
+                "the foreground, and what the overlay did as a result) — useful for reporting an " +
+                "issue with alerts while the app is minimized. Long-press to select and copy.",
+            style = MaterialTheme.typography.bodySmall,
+        )
+        Card(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+            SelectionContainer {
+                Text(
+                    diagnosticsText,
+                    fontFamily = FontFamily.Monospace,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier
+                        .heightIn(max = 220.dp)
+                        .verticalScroll(rememberScrollState())
+                        .padding(12.dp),
+                )
+            }
+        }
+
+        HorizontalDivider(modifier = Modifier.padding(vertical = 24.dp))
+
         Text("Profile", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(bottom = 8.dp))
         val currentProfile = profile
         if (currentProfile != null) {
@@ -200,4 +237,10 @@ fun SettingsScreen() {
             dismissButton = { TextButton(onClick = { showDeleteConfirm = false }) { Text("Cancel") } },
         )
     }
+}
+
+private fun readOverlayDiagnostics(context: android.content.Context): String {
+    val dir = context.getExternalFilesDir("diagnostics") ?: return "(unavailable)"
+    val file = File(dir, "overlay_diagnostics.txt")
+    return if (file.exists()) file.readText() else "No diagnostics recorded yet."
 }

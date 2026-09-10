@@ -14,6 +14,7 @@ import java.util.Date
 import java.util.Locale
 import kotlin.system.exitProcess
 import sg.paralleye.session.AppVisibilityTracker
+import sg.paralleye.session.OverlayDiagnosticLog
 
 /**
  * Debugging aid, not part of the PARALLEYE methodology: captures uncaught exceptions to a file
@@ -24,6 +25,7 @@ import sg.paralleye.session.AppVisibilityTracker
 class ParallayeApplication : Application() {
     override fun onCreate() {
         super.onCreate()
+        OverlayDiagnosticLog.init(this)
         registerActivityLifecycleCallbacks(AppVisibilityLifecycleCallbacks())
         val appContext = this
         Thread.setDefaultUncaughtExceptionHandler { _, throwable ->
@@ -71,8 +73,15 @@ class ParallayeApplication : Application() {
 
 /** Only `onActivityStarted`/`onActivityStopped` matter to [AppVisibilityTracker]; the rest are no-ops. */
 private class AppVisibilityLifecycleCallbacks : Application.ActivityLifecycleCallbacks {
-    override fun onActivityStarted(activity: Activity) = AppVisibilityTracker.onActivityStarted()
-    override fun onActivityStopped(activity: Activity) = AppVisibilityTracker.onActivityStopped()
+    override fun onActivityStarted(activity: Activity) {
+        AppVisibilityTracker.onActivityStarted()
+        OverlayDiagnosticLog.log("activity STARTED (${activity::class.simpleName}) -> isAppVisible=${AppVisibilityTracker.isAppVisible.value}")
+    }
+
+    override fun onActivityStopped(activity: Activity) {
+        AppVisibilityTracker.onActivityStopped()
+        OverlayDiagnosticLog.log("activity STOPPED (${activity::class.simpleName}) -> isAppVisible=${AppVisibilityTracker.isAppVisible.value}")
+    }
     override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {}
     override fun onActivityResumed(activity: Activity) {}
     override fun onActivityPaused(activity: Activity) {}

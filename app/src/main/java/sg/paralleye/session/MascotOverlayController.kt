@@ -42,7 +42,11 @@ class MascotOverlayController(private val context: Context, private val config: 
 
     private fun show(level: AlertLevel) {
         val view = overlayView ?: runCatching { createView() }
-            .onFailure { ParallayeLogger.error("MascotOverlayController", "addView failed", it) }
+            .onSuccess { OverlayDiagnosticLog.log("overlay addView OK, level=$level") }
+            .onFailure {
+                ParallayeLogger.error("MascotOverlayController", "addView failed", it)
+                OverlayDiagnosticLog.log("overlay addView FAILED: ${it::class.simpleName} ${it.message}")
+            }
             .getOrNull()?.also { overlayView = it }
             ?: return
         if (level != currentLevel) {
@@ -62,10 +66,18 @@ class MascotOverlayController(private val context: Context, private val config: 
 
     private fun createView(): ImageView {
         val density = context.resources.displayMetrics.density
-        val sizePx = (MASCOT_SIZE_DP * density).toInt()
+        // Not a square: same reasoning as MsAngleAngelOverlay's KDoc -- the three cropped
+        // character frames are portrait-oriented (~0.62-0.70 width:height), and a fixed square
+        // box previously forced them down to fit, rendering far smaller than intended. A real
+        // WindowManager window's size can't auto-follow each frame's own aspect ratio the way
+        // Compose can without resizing the window on every frame change, so this picks one
+        // fixed box sized close to all three frames' aspect ratio, accepting minor letterboxing
+        // rather than that added complexity.
+        val widthPx = (MASCOT_WIDTH_DP * density).toInt()
+        val heightPx = (MASCOT_HEIGHT_DP * density).toInt()
         val params = WindowManager.LayoutParams(
-            sizePx,
-            sizePx,
+            widthPx,
+            heightPx,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             // Ch.10 §13/§43: tap dismisses immediately, so touches on the mascot itself must
             // still be delivered — NOT_FOCUSABLE keeps it from stealing keyboard/input focus
@@ -81,6 +93,7 @@ class MascotOverlayController(private val context: Context, private val config: 
             y = (config.cornerOffsetYDp * density).toInt()
         }
         return ImageView(context).apply {
+            scaleType = ImageView.ScaleType.FIT_CENTER
             setOnClickListener { onTapped?.invoke() }
             contentDescription = "Ms Angle Angel posture reminder"
             windowManager.addView(this, params)
@@ -88,6 +101,7 @@ class MascotOverlayController(private val context: Context, private val config: 
     }
 
     companion object {
-        private const val MASCOT_SIZE_DP = 96
+        private const val MASCOT_WIDTH_DP = 85
+        private const val MASCOT_HEIGHT_DP = 130
     }
 }

@@ -37,6 +37,7 @@ class MonitoringForegroundService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        OverlayDiagnosticLog.log("service onCreate")
         createNotificationChannel()
 
         // Ch.2 §34 "Error-Handling Principle": a foreground-service-type/permission mismatch
@@ -44,8 +45,10 @@ class MonitoringForegroundService : Service() {
         // must fail predictably rather than crash the whole process.
         try {
             startForeground(NOTIFICATION_ID, buildNotification())
+            OverlayDiagnosticLog.log("startForeground OK")
         } catch (error: Exception) {
             ParallayeLogger.error("MonitoringForegroundService", "startForeground failed", error)
+            OverlayDiagnosticLog.log("startForeground FAILED: ${error.message}")
             stopSelf()
             return
         }
@@ -57,6 +60,7 @@ class MonitoringForegroundService : Service() {
         wakeLock = (getSystemService(POWER_SERVICE) as PowerManager)
             .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "$packageName:monitoring")
             .apply { setReferenceCounted(false); acquire() }
+        OverlayDiagnosticLog.log("wakeLock acquired, isHeld=${wakeLock?.isHeld}")
 
         val overlayController = MascotOverlayController(applicationContext, ParallayeParameters.PROVISIONAL.mascot)
         mascotOverlayController = overlayController
@@ -66,9 +70,12 @@ class MonitoringForegroundService : Service() {
         overlayController.onTapped = { manager.onMascotTapped() }
 
         serviceScope.launch {
-            when (val outcome = manager.initialise()) {
+            val outcome = manager.initialise()
+            OverlayDiagnosticLog.log("initialise() outcome=$outcome")
+            when (outcome) {
                 InitialisationOutcome.Ready -> {
                     manager.startMonitoring()
+                    OverlayDiagnosticLog.log("startMonitoring called")
                     observeMascotOverlay(manager, overlayController)
                 }
                 else -> {
@@ -88,12 +95,20 @@ class MonitoringForegroundService : Service() {
      */
     private fun observeMascotOverlay(manager: SessionManager, overlayController: MascotOverlayController) {
         serviceScope.launch {
+            var lastLoggedAppVisible: Boolean? = null
+            var lastLoggedVisibility: MascotVisibility? = null
             combine(manager.cycleResults, AppVisibilityTracker.isAppVisible) { cycle, appVisible -> cycle to appVisible }
                 .collect { (cycle, appVisible) ->
+                    val visibility = cycle?.alertVisibility ?: MascotVisibility.Hidden
+                    if (appVisible != lastLoggedAppVisible || visibility != lastLoggedVisibility) {
+                        OverlayDiagnosticLog.log("overlay decision: appVisible=$appVisible mascotVisibility=$visibility score=${cycle?.score}")
+                        lastLoggedAppVisible = appVisible
+                        lastLoggedVisibility = visibility
+                    }
                     if (appVisible) {
                         overlayController.hide()
                     } else {
-                        overlayController.update(cycle?.alertVisibility ?: MascotVisibility.Hidden)
+                        overlayController.update(visibility)
                     }
                 }
         }
@@ -102,6 +117,10 @@ class MonitoringForegroundService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int = START_STICKY
 
     override fun onDestroy() {
+        // If the process is killed outright rather than the service being stopped gracefully,
+        // this line never gets written -- the diagnostic file simply stops mid-stream, which is
+        // itself the signal (compare its last timestamp against when the app was backgrounded).
+        OverlayDiagnosticLog.log("service onDestroy")
         sessionManager?.completeSession()
         mascotOverlayController?.hide()
         wakeLock?.let { if (it.isHeld) it.release() }
