@@ -19,6 +19,21 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    // Every CI run is a fresh, ephemeral GitHub Actions runner with no ~/.android/debug.keystore
+    // -- left to AGP's default, each build would generate a brand-new random debug key, so a
+    // debug APK from one CI run could never be sideload-installed over one from a previous run
+    // without a full uninstall first (Android refuses an update whose signature doesn't match
+    // the installed app's). A checked-in debug keystore (zero security value; standard debug
+    // credentials, never used for release) makes every build's signature identical instead.
+    signingConfigs {
+        getByName("debug") {
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
@@ -26,6 +41,7 @@ android {
         }
         debug {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
 
