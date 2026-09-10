@@ -2,6 +2,8 @@ package sg.paralleye.session
 
 import android.content.Context
 import android.graphics.PixelFormat
+import android.os.Handler
+import android.os.Looper
 import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
@@ -24,23 +26,38 @@ import sg.paralleye.ui.mascot.frameFor
  * boilerplate, and this view's whole job is "show one of six static drawables, dismiss on
  * tap" — [sg.paralleye.ui.mascot.frameFor] already owns the level→drawable mapping, this class
  * only owns *how* to present it outside the app's own window.
+ *
+ * `update`/`hide` are called from [MonitoringForegroundService]'s `Dispatchers.Default`
+ * coroutine scope, but [WindowManager.addView]/`removeView` require a thread with a prepared
+ * `Looper` (the main thread) — confirmed the hard way via [OverlayDiagnosticLog]: every call
+ * was throwing "Can't create handler inside thread ... that has not called Looper.prepare()",
+ * silently swallowed by the `runCatching` below, which is the actual reason the background
+ * overlay never appeared through several previous rounds of "fixing" this. Every mutation is
+ * posted to [mainHandler] so this class is safe to drive from any thread.
  */
 class MascotOverlayController(private val context: Context, private val config: MascotConfig) {
 
     private val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
+    private val mainHandler = Handler(Looper.getMainLooper())
     private var overlayView: ImageView? = null
     private var currentLevel: AlertLevel? = null
 
     var onTapped: (() -> Unit)? = null
 
     fun update(visibility: MascotVisibility) {
-        when (visibility) {
-            MascotVisibility.Hidden -> hide()
-            is MascotVisibility.Visible -> show(visibility.level)
+        mainHandler.post {
+            when (visibility) {
+                MascotVisibility.Hidden -> hideOnMainThread()
+                is MascotVisibility.Visible -> showOnMainThread(visibility.level)
+            }
         }
     }
 
-    private fun show(level: AlertLevel) {
+    fun hide() {
+        mainHandler.post { hideOnMainThread() }
+    }
+
+    private fun showOnMainThread(level: AlertLevel) {
         val view = overlayView ?: runCatching { createView() }
             .onSuccess { OverlayDiagnosticLog.log("overlay addView OK, level=$level") }
             .onFailure {
@@ -56,7 +73,7 @@ class MascotOverlayController(private val context: Context, private val config: 
         view.visibility = View.VISIBLE
     }
 
-    fun hide() {
+    private fun hideOnMainThread() {
         val view = overlayView ?: return
         runCatching { windowManager.removeView(view) }
             .onFailure { ParallayeLogger.error("MascotOverlayController", "removeView failed", it) }

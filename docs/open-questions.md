@@ -109,6 +109,23 @@ listed here and the UI must never imply scientific validation where none exists.
     report on this specific issue should come with this file's contents rather than another
     guess from either side.
 
+    **Resolved on the first real trace.** The client's exported diagnostic log showed the
+    actual cause conclusively, no guessing required: every `WindowManager.addView()` call in
+    `MascotOverlayController.createView()` was throwing `RuntimeException: Can't create
+    handler inside thread [DefaultDispatcher-worker-N] that has not called Looper.prepare()`
+    — repeatedly, on every single attempt, for the entire time this feature has existed.
+    `MonitoringForegroundService` drives the overlay from its `Dispatchers.Default` coroutine
+    scope (a background thread pool); `WindowManager` and View operations require a thread
+    with a prepared `Looper`, which in practice means the main thread. The exception was being
+    caught by the controller's own `runCatching` (added defensively, without realizing it
+    would end up hiding the actual bug) and logged only to Logcat, invisible without adb — so
+    the background overlay had silently never worked, not once, through the FGS-type-crash fix,
+    the "add the overlay at all" fix, and the peel/sizing fixes, all of which were real and
+    necessary but none of which touched the actual blocker. Fixed by posting every view
+    mutation in `MascotOverlayController` through `Handler(Looper.getMainLooper())`, so the
+    class is safe to drive from any thread. This is the concrete payoff of adding
+    `OverlayDiagnosticLog` instead of guessing a fourth time.
+
 ## Checked, no conflict found
 
 4. **Angle-Load table vs. Posture Zone boundary revision.** Ch.1's revision note says the
