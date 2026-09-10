@@ -5,8 +5,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -43,11 +43,16 @@ fun MsAngleAngelOverlay(
             label = "ms_angle_angel_visibility",
         ) { state ->
             if (state is MascotVisibility.Visible) {
+                // Fixed height, no explicit width: the three frames frameFor() maps to are
+                // cropped tightly to the character (no more phone-bezel padding), each at a
+                // slightly different aspect ratio. A fixed *square* box previously forced the
+                // tallest/narrowest of them down to fit, rendering far smaller than intended —
+                // letting width follow each frame's own intrinsic aspect ratio avoids that.
                 Image(
                     painter = painterResource(id = frameFor(state.level)),
                     contentDescription = "Ms Angle Angel posture reminder",
                     modifier = Modifier
-                        .size(96.dp)
+                        .height(130.dp)
                         .clickable(onClickLabel = "Dismiss posture reminder") { onTapped() }
                         .semantics { contentDescription = "Ms Angle Angel posture reminder, tap to dismiss" },
                 )
