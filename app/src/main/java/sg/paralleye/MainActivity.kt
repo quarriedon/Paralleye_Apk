@@ -157,6 +157,7 @@ private fun MonitoringActiveScreen() {
             val result = cycleResult
             if (result != null) {
                 Text("Score: ${result.score}", modifier = Modifier.padding(top = 24.dp))
+                Text("Angle: %.1f°".format(result.angleDegrees))
                 Text("Zone: ${result.zone}")
             }
         }

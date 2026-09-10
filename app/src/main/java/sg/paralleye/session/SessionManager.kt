@@ -36,6 +36,7 @@ import sg.paralleye.sensors.SensorFrameworkEngine
 
 data class PipelineCycleResult(
     val zone: PostureZone,
+    val angleDegrees: Double,
     val angleLoad: Double,
     val cumulativeLoad: Double,
     val score: Int,
@@ -249,6 +250,7 @@ class SessionManager(
 
         _cycleResults.value = PipelineCycleResult(
             zone = effectiveZone,
+            angleDegrees = angle,
             angleLoad = interpretation.angleLoad,
             cumulativeLoad = cumulativeLoad.currentLoad,
             score = score,
