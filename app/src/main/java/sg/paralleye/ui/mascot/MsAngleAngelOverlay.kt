@@ -48,11 +48,13 @@ fun MsAngleAngelOverlay(
                 // slightly different aspect ratio. A fixed *square* box previously forced the
                 // tallest/narrowest of them down to fit, rendering far smaller than intended —
                 // letting width follow each frame's own intrinsic aspect ratio avoids that.
+                // 260dp per client instruction ("not dim and small, up to 30% of that
+                // quadrant") -- roughly double the previous 130dp.
                 Image(
                     painter = painterResource(id = frameFor(state.level)),
                     contentDescription = "Ms Angle Angel posture reminder",
                     modifier = Modifier
-                        .height(130.dp)
+                        .height(260.dp)
                         .clickable(onClickLabel = "Dismiss posture reminder") { onTapped() }
                         .semantics { contentDescription = "Ms Angle Angel posture reminder, tap to dismiss" },
                 )

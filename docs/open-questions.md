@@ -208,6 +208,22 @@ listed here and the UI must never imply scientific validation where none exists.
    device — sideload the build and check that holding the phone upright reads near 0° and
    tilting it flat increases toward ~90°, in all three supported orientations.
 
+   Update after a device-testing report of "~5-6° while held vertical, ~80° while flat on a
+   table" (expected 0°/90°): re-derived `DeviceAngleCalculator.calculateAngleDegrees` by hand
+   for ideal inputs — `arccos(remapped.y/magnitude)` gives exactly 0.0° for `(x=0,y=+9.80665,
+   z=0)` and exactly 90.0° for `(x=0,y=0,z=+9.80665)` — so the formula itself is not the bug;
+   a 5-6° reading is what a genuine ~5-6° physical tilt produces (`cos(5.5°) ≈ 0.9954`), and
+   nobody holds a phone at a mathematically perfect 90°/0° by feel. Separately, found and
+   fixed a real, confirmed bug while investigating: `SensorFrameworkEngine.
+   onScreenOrientationChanged` (and `ScreenOrientation.fromSurfaceRotation`, which converts
+   Android's `Display.getRotation()` into the enum this class expects) were both written and
+   unit-tested but never called by anything — `screenOrientation` was permanently stuck at
+   `PORTRAIT` regardless of how the phone was actually held, so any sample taken while
+   rotated used the wrong axis remap (see SENS-10 in traceability.md). Now wired via a
+   `DisplayManager.DisplayListener` in `SessionManager`. This would explain large,
+   orientation-correlated errors, not a flat 5-10° offset in portrait. See item 17 below for
+   what a flat, orientation-independent offset most likely is instead.
+
 7. **Gyroscope-to-angle-change approximation.** The complementary filter's "gyroscope
    change" term is approximated as the integrated angular velocity around the remapped X
    axis (`SensorFrameworkEngine.computeGyroChangeDegrees`) rather than a full 3D rotation
@@ -235,7 +251,21 @@ listed here and the UI must never imply scientific validation where none exists.
     disclosed battery-life cost for the duration of every monitoring session — not something
     the source documents settle either way, so flagged here rather than silently accepted.
 
-## Engineering interpretation (not a disputed methodology value)
+17. **Accelerometer zero-offset/bias, no calibration step.** After ruling out the formula
+    (item 6, verified correct for ideal input) and fixing the orientation-wiring bug above,
+    a flat-on-a-table reading of ~80° instead of ~90° (and a small vertical offset) that
+    persists on a *specific physical device* in a *fixed orientation* is most consistent with
+    ordinary commodity accelerometer bias — consumer MEMS accelerometers commonly read a few
+    degrees off true without per-device calibration, which is exactly why most tilt-sensing
+    apps ship a "lay flat and tap to zero" or "hold upright and tap to zero" calibration step.
+    Nothing in the source documents describes such a step, and none exists in this app —
+    `CalibrationRepository`'s "baseline" (Ch.4) is the user's neck/posture profile from
+    onboarding, not a sensor zero-offset. Added raw accelerometer x/y/z plus
+    `screenOrientation` to the throttled `OverlayDiagnosticLog` cycle line (`SessionManager.
+    onSample`) so a future report can be checked against actual raw sensor values instead of
+    guessed at blind. Building a real zero-offset calibration feature would be a genuine new
+    feature beyond what's specified, not a bug fix — flagged here rather than built
+    speculatively; needs a client decision before implementing.
 
 5. **Angle-load table lookup granularity.** The table in Ch.1 §11 is authored as whole-degree
    bands with integer gaps between them (e.g. "0°–20°" then "21°–25°"), which has no band for

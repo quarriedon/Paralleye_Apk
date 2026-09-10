@@ -84,12 +84,14 @@ class MascotOverlayController(private val context: Context, private val config: 
     private fun createView(): ImageView {
         val density = context.resources.displayMetrics.density
         // Not a square: same reasoning as MsAngleAngelOverlay's KDoc -- the three cropped
-        // character frames are portrait-oriented (~0.62-0.70 width:height), and a fixed square
-        // box previously forced them down to fit, rendering far smaller than intended. A real
-        // WindowManager window's size can't auto-follow each frame's own aspect ratio the way
-        // Compose can without resizing the window on every frame change, so this picks one
-        // fixed box sized close to all three frames' aspect ratio, accepting minor letterboxing
-        // rather than that added complexity.
+        // character frames are portrait-oriented (~0.2-0.7 width:height depending on reveal
+        // stage), and a fixed square box previously forced them down to fit, rendering far
+        // smaller than intended. A real WindowManager window's size can't auto-follow each
+        // frame's own aspect ratio the way Compose can without resizing the window on every
+        // frame change, so this picks one fixed box close to the FULL_ALERT frame's aspect
+        // ratio (the most-visible, most-important state), accepting letterboxing on the
+        // narrower PEEK/PEEL frames instead. Matches MsAngleAngelOverlay's 260dp height per
+        // client instruction ("not dim and small, up to 30% of that quadrant").
         val widthPx = (MASCOT_WIDTH_DP * density).toInt()
         val heightPx = (MASCOT_HEIGHT_DP * density).toInt()
         val params = WindowManager.LayoutParams(
@@ -118,7 +120,7 @@ class MascotOverlayController(private val context: Context, private val config: 
     }
 
     companion object {
-        private const val MASCOT_WIDTH_DP = 85
-        private const val MASCOT_HEIGHT_DP = 130
+        private const val MASCOT_WIDTH_DP = 185
+        private const val MASCOT_HEIGHT_DP = 260
     }
 }

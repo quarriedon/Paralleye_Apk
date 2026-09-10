@@ -1,7 +1,9 @@
 package sg.paralleye.session
 
 import android.content.Context
+import android.hardware.display.DisplayManager
 import android.os.SystemClock
+import android.view.Display
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -29,6 +31,7 @@ import sg.paralleye.domain.behaviour.RecoveryEngine
 import sg.paralleye.domain.behaviour.ScoringEngine
 import sg.paralleye.domain.behaviour.ZoneTransitionGate
 import sg.paralleye.domain.measurement.MeasurementSample
+import sg.paralleye.domain.measurement.ScreenOrientation
 import sg.paralleye.domain.reporting.SessionSummaryAccumulator
 import sg.paralleye.logging.CycleRecord
 import sg.paralleye.logging.ParallayeLogger
@@ -68,6 +71,22 @@ class SessionManager(
     @Volatile private var sensitivityLevel: SensitivityLevel = SensitivityLevel.MEDIUM
 
     private var sensorEngine: SensorFrameworkEngine? = null
+
+    // Ch.3 §18: SensorFrameworkEngine.onScreenOrientationChanged existed and was unit-tested
+    // (see DeviceAngleCalculatorTest's LANDSCAPE_LEFT/RIGHT axis-remap convention) but nothing
+    // in the app ever called it -- screenOrientation was permanently stuck at PORTRAIT, so any
+    // sample taken while the device was actually rotated used the wrong accelerometer axis
+    // remap. Reusing ScreenOrientation.fromSurfaceRotation (also already written, also never
+    // called) rather than writing new degree-bucket logic here, specifically to avoid getting
+    // the LANDSCAPE_LEFT/RIGHT direction backwards a second time in this codebase.
+    private val displayManager = context.getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
+    private val displayListener = object : DisplayManager.DisplayListener {
+        override fun onDisplayAdded(displayId: Int) = Unit
+        override fun onDisplayRemoved(displayId: Int) = Unit
+        override fun onDisplayChanged(displayId: Int) {
+            if (displayId == Display.DEFAULT_DISPLAY) syncScreenOrientation()
+        }
+    }
     private val zoneGate = ZoneTransitionGate(params.zoneThresholds.hysteresisMarginDegrees)
     private val cumulativeLoad = CumulativeLoadEngine()
     private val alertEngine = AdaptiveAlertEngine()
@@ -108,6 +127,8 @@ class SessionManager(
         state = MonitoringState.MONITORING_ACTIVE
         sessionSummaryAccumulator.start(System.currentTimeMillis())
         engine.start()
+        syncScreenOrientation()
+        displayManager.registerDisplayListener(displayListener, null)
         scope.launch {
             settingsRepository.sensitivityLevel.collect { level -> sensitivityLevel = level }
         }
@@ -136,6 +157,7 @@ class SessionManager(
         val wasActive = state == MonitoringState.MONITORING_ACTIVE || state == MonitoringState.MONITORING_PAUSED
         state = MonitoringState.SESSION_COMPLETED
         sensorEngine?.stop()
+        displayManager.unregisterDisplayListener(displayListener)
         if (wasActive) {
             // Deliberately NOT `scope`, which is cancelled immediately below — this save must
             // outlive that cancellation to actually reach the database.
@@ -161,6 +183,11 @@ class SessionManager(
     fun onMascotTapped() {
         val sensitivity = params.sensitivityPresets.getValue(sensitivityLevel)
         alertEngine.onMascotTapped(SystemClock.elapsedRealtime(), sensitivity.reappearanceIntervalSeconds * 1000L)
+    }
+
+    private fun syncScreenOrientation() {
+        val rotation = displayManager.getDisplay(Display.DEFAULT_DISPLAY)?.rotation ?: return
+        sensorEngine?.onScreenOrientationChanged(ScreenOrientation.fromSurfaceRotation(rotation))
     }
 
     private fun onSample(sample: MeasurementSample) {
@@ -266,9 +293,12 @@ class SessionManager(
         val elapsedNow = android.os.SystemClock.elapsedRealtime()
         if (elapsedNow - lastDiagnosticLogElapsedMillis >= 5000) {
             lastDiagnosticLogElapsedMillis = elapsedNow
+            val raw = sample.rawAccelerometer
             OverlayDiagnosticLog.log(
                 "cycle angle=${"%.1f".format(angle)} zone=$effectiveZone load=${"%.1f".format(cumulativeLoad.currentLoad)} " +
-                    "recoveryThisCycle=${"%.2f".format(recoveryThisCycle)} score=$score",
+                    "recoveryThisCycle=${"%.2f".format(recoveryThisCycle)} score=$score " +
+                    "orientation=${sample.screenOrientation} " +
+                    "raw=(${raw?.x?.let { "%.2f".format(it) }},${raw?.y?.let { "%.2f".format(it) }},${raw?.z?.let { "%.2f".format(it) }})",
             )
         }
     }
