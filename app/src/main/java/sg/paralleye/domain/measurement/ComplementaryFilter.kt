@@ -25,10 +25,17 @@ class ComplementaryFilter(private val alpha: Double) {
      */
     fun update(accelerometerAngleDegrees: Double, gyroChangeDegrees: Double?): Double {
         val previous = fusedAngleDegrees
-        val result = if (previous == null || gyroChangeDegrees == null) {
-            accelerometerAngleDegrees
-        } else {
-            alpha * (previous + gyroChangeDegrees) + (1 - alpha) * accelerometerAngleDegrees
+        // Previously, no gyro data this cycle meant no smoothing at all -- the raw
+        // accelerometer angle passed straight through. On a device in permanent
+        // SensorMode.ACCELEROMETER_ONLY_FALLBACK (no gyroscope hardware), *every* cycle hits
+        // this branch, so the configured alpha smoothing never actually applied there, ever --
+        // reported as the angle reading "still sensitive." Still degrading gracefully (no gyro
+        // term to add), but now a low-pass on the accelerometer angle itself rather than a raw
+        // pass-through, using the same alpha rather than inventing a second constant.
+        val result = when {
+            previous == null -> accelerometerAngleDegrees
+            gyroChangeDegrees != null -> alpha * (previous + gyroChangeDegrees) + (1 - alpha) * accelerometerAngleDegrees
+            else -> alpha * previous + (1 - alpha) * accelerometerAngleDegrees
         }
         fusedAngleDegrees = result
         return result

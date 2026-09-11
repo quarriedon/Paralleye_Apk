@@ -1,13 +1,17 @@
 package sg.paralleye.ui.mascot
 
-import androidx.compose.animation.Crossfade
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
@@ -37,9 +41,20 @@ fun MsAngleAngelOverlay(
     modifier: Modifier = Modifier,
 ) {
     Box(modifier = modifier.offset(x = -config.cornerOffsetXDp.dp, y = config.cornerOffsetYDp.dp)) {
-        Crossfade(
+        // The plain Crossfade() composable (used previously) hard-codes Alignment.TopStart for
+        // its own internal content placement, with no parameter to override it -- so whenever
+        // its box ended up wider than the currently-visible frame (e.g. mid-transition between
+        // a narrow PEEK crop and a wider PEEL/FULL_ALERT one), that frame rendered left-aligned
+        // *inside* Crossfade's own bounds, appearing to float away from the true right edge and
+        // slide toward it as later, wider frames filled more of the space -- the exact bug
+        // reported. AnimatedContent (what Crossfade is itself built on) exposes contentAlignment
+        // directly, so every frame is anchored to the right edge instead of an unconfigurable
+        // default; fadeIn/fadeOut together reproduce Crossfade's plain cross-dissolve.
+        val fadeSpec = tween<Float>(durationMillis = config.appearanceAnimationMillis.toInt())
+        AnimatedContent(
             targetState = visibility,
-            animationSpec = tween(durationMillis = config.appearanceAnimationMillis.toInt()),
+            transitionSpec = { fadeIn(animationSpec = fadeSpec) togetherWith fadeOut(animationSpec = fadeSpec) },
+            contentAlignment = Alignment.CenterEnd,
             label = "ms_angle_angel_visibility",
         ) { state ->
             if (state is MascotVisibility.Visible) {

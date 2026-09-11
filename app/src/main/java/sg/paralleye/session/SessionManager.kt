@@ -182,7 +182,17 @@ class SessionManager(
      */
     fun onMascotTapped() {
         val sensitivity = params.sensitivityPresets.getValue(sensitivityLevel)
-        alertEngine.onMascotTapped(SystemClock.elapsedRealtime(), sensitivity.reappearanceIntervalSeconds * 1000L)
+        val nowMillis = SystemClock.elapsedRealtime()
+        val waitMillis = sensitivity.reappearanceIntervalSeconds * 1000L
+        alertEngine.onMascotTapped(nowMillis, waitMillis)
+        // "Reappearance takes a while" is otherwise unverifiable from the throttled cycle log
+        // alone (it can't show exactly when a tap happened, only the visibility outcome every
+        // 5s) -- this pins down the actual tap time and configured wait so a future report can
+        // show definitively whether the delay matches sensitivityLevel or something's wrong.
+        OverlayDiagnosticLog.log(
+            "mascot tapped at $nowMillis, sensitivity=$sensitivityLevel reappearIn=${sensitivity.reappearanceIntervalSeconds}s " +
+                "-> waitUntil=${nowMillis + waitMillis}",
+        )
     }
 
     private fun syncScreenOrientation() {
@@ -297,7 +307,7 @@ class SessionManager(
             OverlayDiagnosticLog.log(
                 "cycle angle=${"%.1f".format(angle)} zone=$effectiveZone load=${"%.1f".format(cumulativeLoad.currentLoad)} " +
                     "recoveryThisCycle=${"%.2f".format(recoveryThisCycle)} score=$score " +
-                    "orientation=${sample.screenOrientation} " +
+                    "orientation=${sample.screenOrientation} sensorMode=${sample.sensorMode} " +
                     "raw=(${raw?.x?.let { "%.2f".format(it) }},${raw?.y?.let { "%.2f".format(it) }},${raw?.z?.let { "%.2f".format(it) }})",
             )
         }

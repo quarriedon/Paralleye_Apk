@@ -23,11 +23,15 @@ class ComplementaryFilterTest {
     }
 
     @Test
-    fun `missing gyro data falls back to accelerometer angle only`() {
+    fun `missing gyro data still low-pass filters the accelerometer angle, not a raw pass-through`() {
         val filter = ComplementaryFilter(alpha = 0.9)
         filter.update(accelerometerAngleDegrees = 20.0, gyroChangeDegrees = 0.0)
         val result = filter.update(accelerometerAngleDegrees = 30.0, gyroChangeDegrees = null)
-        assertEquals(30.0, result, 0.0001)
+        // alpha * previous + (1-alpha) * accel = 0.9*20 + 0.1*30 = 18.0 + 3.0 = 21.0 -- a
+        // device with no gyroscope hits this branch every single cycle (SensorMode.
+        // ACCELEROMETER_ONLY_FALLBACK), so passing the raw angle straight through here meant
+        // configured alpha smoothing never actually applied on that hardware, ever.
+        assertEquals(21.0, result, 0.0001)
     }
 
     @Test
