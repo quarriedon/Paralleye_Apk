@@ -162,4 +162,35 @@ class AdaptiveAlertEngineTest {
         val nowPeel = engine.onCycle(46, ranges, nowMillis = 200, reappear, promptWindow) // clears 50-3
         assertEquals(AlertLevel.PEEL, nowPeel.level)
     }
+
+    @Test
+    fun `mascot stays hidden until the non-idle level has held for alertQualificationMillis`() {
+        val engine = AdaptiveAlertEngine()
+        val qualification = 5_000L
+        val stillHidden = engine.onCycle(40, ranges, nowMillis = 0, reappear, promptWindow, qualification) // Peel
+        assertEquals(MascotVisibility.Hidden, stillHidden.visibility)
+        val stillHiddenLater = engine.onCycle(40, ranges, nowMillis = 4_999, reappear, promptWindow, qualification)
+        assertEquals(MascotVisibility.Hidden, stillHiddenLater.visibility)
+        val nowVisible = engine.onCycle(40, ranges, nowMillis = 5_000, reappear, promptWindow, qualification)
+        assertEquals(MascotVisibility.Visible(AlertLevel.PEEL), nowVisible.visibility)
+    }
+
+    @Test
+    fun `a brief dip back to idle resets the qualification timer`() {
+        val engine = AdaptiveAlertEngine()
+        val qualification = 5_000L
+        engine.onCycle(40, ranges, nowMillis = 0, reappear, promptWindow, qualification) // Peel, starts qualifying
+        engine.onCycle(90, ranges, nowMillis = 3_000, reappear, promptWindow, qualification) // briefly Idle
+        val result = engine.onCycle(40, ranges, nowMillis = 5_000, reappear, promptWindow, qualification) // Peel again
+        // Only 2s since this second Peel episode started (5000-3000), well under the 5s
+        // qualification window, even though the *first* episode started at t=0.
+        assertEquals(MascotVisibility.Hidden, result.visibility)
+    }
+
+    @Test
+    fun `zero qualification millis (the default) shows the mascot immediately, unchanged from before`() {
+        val engine = AdaptiveAlertEngine()
+        val result = engine.onCycle(40, ranges, nowMillis = 0, reappear, promptWindow)
+        assertEquals(MascotVisibility.Visible(AlertLevel.PEEL), result.visibility)
+    }
 }

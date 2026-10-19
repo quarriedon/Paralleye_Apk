@@ -8,12 +8,16 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -35,6 +39,7 @@ import sg.paralleye.data.calibration.CalibrationRepository
 import sg.paralleye.data.db.ParallayeDatabase
 import sg.paralleye.domain.alert.MascotVisibility
 import sg.paralleye.session.MonitoringForegroundService
+import sg.paralleye.session.MonitoringState
 import sg.paralleye.session.SessionManagerHolder
 import sg.paralleye.ui.history.HistoryScreen
 import sg.paralleye.ui.mascot.MsAngleAngelOverlay
@@ -128,12 +133,34 @@ private fun MainTabs() {
  * *same* [sg.paralleye.session.SessionManager] instance (via [SessionManagerHolder]) that the
  * service is driving, so the live score/zone and the Ch.10 mascot overlay actually reflect
  * what the background pipeline is doing rather than a disconnected placeholder.
+ *
+ * Ch.11 §26-29 "Pause"/"Stop": [sg.paralleye.session.SessionManager.pauseMonitoring],
+ * `resumeMonitoring` and `completeSession` all existed already but nothing in the app ever
+ * called any of them — confirmed there was genuinely no way for the user to pause or stop
+ * monitoring short of force-stopping the whole app from Android Settings. Stop tears down the
+ * foreground service (through the same `onDestroy` -> `completeSession` path that already
+ * existed for system-initiated teardown) and flips [SessionManagerHolder.stoppedByUser] so this
+ * screen shows a "Start Monitoring" prompt instead of silently auto-restarting the moment the
+ * user switches back to this tab.
  */
 @Composable
 private fun MonitoringActiveScreen() {
     val context = androidx.compose.ui.platform.LocalContext.current
-    val sessionManager = remember { SessionManagerHolder.getInstance(context) }
+    var stoppedByUser by remember { mutableStateOf(SessionManagerHolder.stoppedByUser) }
+
+    if (stoppedByUser) {
+        StoppedScreen(
+            onStart = {
+                SessionManagerHolder.clearStoppedByUser()
+                stoppedByUser = false
+            },
+        )
+        return
+    }
+
+    val sessionManager = remember(stoppedByUser) { SessionManagerHolder.getInstance(context) }
     val cycleResult by sessionManager.cycleResults.collectAsState()
+    val monitoringState by sessionManager.monitoringState.collectAsState()
 
     // Display-only throttle. The pipeline emits at the full Ch.3 sensor sampling rate --
     // correct, and unchanged, for scoring/alerts -- but redrawing the angle number that fast
@@ -174,6 +201,33 @@ private fun MonitoringActiveScreen() {
                 Text("Angle: %.1f°".format(result.angleDegrees))
                 Text("Zone: ${result.zone}")
             }
+
+            Row(modifier = Modifier.padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                when (monitoringState) {
+                    MonitoringState.MONITORING_ACTIVE ->
+                        OutlinedButton(onClick = { sessionManager.pauseMonitoring() }) { Text("Pause") }
+                    MonitoringState.MONITORING_PAUSED ->
+                        Button(onClick = { sessionManager.resumeMonitoring() }) { Text("Resume") }
+                    else -> Unit
+                }
+                if (monitoringState == MonitoringState.MONITORING_ACTIVE || monitoringState == MonitoringState.MONITORING_PAUSED) {
+                    OutlinedButton(
+                        onClick = {
+                            context.stopService(Intent(context, MonitoringForegroundService::class.java))
+                            SessionManagerHolder.stopByUser()
+                            stoppedByUser = true
+                        },
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                    ) { Text("Stop") }
+                }
+            }
+            if (monitoringState == MonitoringState.MONITORING_PAUSED) {
+                Text(
+                    "Paused — no posture tracking or alerts until you resume.",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+            }
         }
 
         MsAngleAngelOverlay(
@@ -182,5 +236,22 @@ private fun MonitoringActiveScreen() {
             onTapped = { sessionManager.onMascotTapped() },
             modifier = Modifier.align(Alignment.TopEnd),
         )
+    }
+}
+
+@Composable
+private fun StoppedScreen(onStart: () -> Unit) {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Column(
+            modifier = Modifier.padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text("Monitoring is stopped", style = MaterialTheme.typography.headlineSmall)
+            Text(
+                "Paralleye isn't watching your posture right now.",
+                modifier = Modifier.padding(top = 8.dp, bottom = 16.dp),
+            )
+            Button(onClick = onStart) { Text("Start Monitoring") }
+        }
     }
 }

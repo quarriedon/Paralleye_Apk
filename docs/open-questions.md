@@ -192,6 +192,29 @@ listed here and the UI must never imply scientific validation where none exists.
    yet, consistent with §26's own MVP allowance rather than the more advanced adaptation the
    chapter describes as a later increment.
 
+18. **Real activity capture (Ch.1 §12, Ch.6) — still not built, client asked directly.**
+    `ActivityClassifier` itself is a real, tested, evidence-based classifier (see ACT-01 in
+    traceability.md), but `SessionManager.onSample` has always fed it a hard-coded empty
+    observation (`keyboardActive=false, foregroundAppCategory=null,
+    continuousInteractionSeconds=0`), so every cycle classifies `UNKNOWN` and the activity
+    multiplier is always 1.0 regardless of what's actually happening on the phone — confirmed
+    unchanged on direct question. Building the real signal gathering is a genuinely bigger
+    feature than it looks, not a quick wire-up, because of what Android requires for each
+    signal Ch.6 names:
+    - **Foreground app category** needs `PACKAGE_USAGE_STATS`, which isn't a normal runtime
+      permission — the user has to be sent to a system Settings page to grant it manually, per
+      app, and Google Play's Sensitive App Permissions policy restricts which app categories
+      may request it at all.
+    - **Keyboard-active state** has no direct public API for "is some other app's keyboard
+      open right now" — the practical way to observe it is an `AccessibilityService`, which
+      Play Store review scrutinizes heavily for exactly this kind of general-purpose usage
+      (accessibility services are meant for assistive use, and Google has rejected/removed
+      apps using one as a convenience signal rather than for accessibility).
+    Both are real, legitimate Android capabilities, not blocked outright — but they're a
+    privacy-sensitive, store-policy-sensitive feature commitment, not something to wire up
+    silently as part of an unrelated fix. Needs a client decision on whether it's worth
+    pursuing before any of it gets built.
+
 ## Deferred UI polish (not fabricated, not yet built)
 
 11. **Full corner-peel frame animation (Ch.10 §25, §40, character/animation specs).** The

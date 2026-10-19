@@ -40,12 +40,23 @@ class AdaptiveAlertEngine {
     // is purely a presentation-layer dead-band, same as ZoneTransitionGate is for zones.
     private var effectiveLevel: AlertLevel? = null
 
+    // Ch.2 §25 "alertQualificationSeconds" (SensitivityAdjustment): configured per sensitivity
+    // level, validated by ConfigValidator, but never actually read anywhere -- the mascot
+    // appeared on the very first cycle a boundary was crossed, so switching to Low sensitivity
+    // never actually made alerts less frequent (it only shortened how long a *dismissed*
+    // mascot stayed hidden). Tracks how long the level has been continuously non-Idle so a
+    // brief dip while adjusting grip doesn't instantly show the mascot -- distinct from
+    // hysteresisMarginPoints above, which filters score *noise at* a boundary, not how long a
+    // genuinely-crossed boundary must hold before it's actually shown.
+    private var nonIdleSinceMillis: Long? = null
+
     fun onCycle(
         score: Int,
         ranges: AlertStateRanges,
         nowMillis: Long,
         reappearanceIntervalMillis: Long,
         promptCorrectionWindowMillis: Long,
+        alertQualificationMillis: Long = 0L,
     ): AlertCycleResult {
         val level = gatedLevel(AlertLevel.classify(score, ranges), score, ranges)
         val postureJustCorrected = level == AlertLevel.IDLE && previousLevel != AlertLevel.IDLE
@@ -68,6 +79,13 @@ class AdaptiveAlertEngine {
         }
         previousLevel = level
 
+        if (level == AlertLevel.IDLE) {
+            nonIdleSinceMillis = null
+        } else if (nonIdleSinceMillis == null) {
+            nonIdleSinceMillis = nowMillis
+        }
+        val qualified = level == AlertLevel.IDLE || (nowMillis - nonIdleSinceMillis!!) >= alertQualificationMillis
+
         // Ch.10 §16, §29-31: visibility / dismissal / waiting / reappearance.
         val visibility: MascotVisibility = when {
             level == AlertLevel.IDLE -> {
@@ -75,6 +93,7 @@ class AdaptiveAlertEngine {
                 waitingUntilMillis = null
                 MascotVisibility.Hidden
             }
+            !qualified -> MascotVisibility.Hidden
             isDismissed -> {
                 val waitUntil = waitingUntilMillis
                 if (waitUntil != null && nowMillis >= waitUntil) {
@@ -109,6 +128,7 @@ class AdaptiveAlertEngine {
         fullAlertEnteredAtMillis = null
         promptCorrectionConsumedForCurrentFullAlert = false
         effectiveLevel = null
+        nonIdleSinceMillis = null
     }
 
     private fun gatedLevel(rawLevel: AlertLevel, score: Int, ranges: AlertStateRanges): AlertLevel {

@@ -62,8 +62,17 @@ class SessionManager(
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
-    var state: MonitoringState = MonitoringState.INITIALISATION
-        private set
+    // Backed by a StateFlow (rather than a plain var) so the Settings screen's Pause/Resume/Stop
+    // controls can reflect the actual running state reactively -- previously nothing in the app
+    // could even read this outside SessionManager itself, since pauseMonitoring/resumeMonitoring
+    // existed but were never called from anywhere, confirmed there was genuinely no way to pause
+    // or stop monitoring once started short of force-stopping the whole app from Android Settings.
+    private val _monitoringState = MutableStateFlow(MonitoringState.INITIALISATION)
+    val monitoringState: StateFlow<MonitoringState> = _monitoringState.asStateFlow()
+
+    var state: MonitoringState
+        get() = _monitoringState.value
+        private set(value) { _monitoringState.value = value }
 
     /** Ch.2 §25: the one approved behavioural parameter users can adjust; kept live so a
      * change made from the Settings screen mid-session takes effect on the next cycle rather
@@ -142,6 +151,10 @@ class SessionManager(
         if (state != MonitoringState.MONITORING_ACTIVE) return
         ParallayeLogger.monitoringStateChange(state.name, MonitoringState.MONITORING_PAUSED.name)
         state = MonitoringState.MONITORING_PAUSED
+        // A deliberate pause should silence whatever alert was showing immediately, not leave
+        // it frozen on screen until the user resumes -- score/angle/zone are left as the last
+        // known values (informational), only the mascot is forced hidden.
+        _cycleResults.value = _cycleResults.value?.copy(alertVisibility = MascotVisibility.Hidden)
     }
 
     /** Ch.11 §27: resumes using the existing profile/calibration/session state, no re-onboarding. */
@@ -214,6 +227,7 @@ class SessionManager(
 
         val interpretation = AngleInterpretationEngine.interpret(angle, sample.quality, params) ?: return
         val effectiveZone = zoneGate.observe(interpretation.zone, angle, params.zoneThresholds)
+        val sensitivity = params.sensitivityPresets.getValue(sensitivityLevel)
 
         // Ch.6/ACT-01: real foreground-app/keyboard signal gathering is a follow-up; Unknown
         // fallback is the spec-compliant default per Ch.2 Sec.9, not a placeholder guess.
@@ -222,13 +236,22 @@ class SessionManager(
         )
         val multiplier = params.activityMultipliers.multiplierFor(activity.category)
 
+        // Ch.2 §25 "accumulationMultiplier" (SensitivityAdjustment): configured per sensitivity
+        // level, validated by ConfigValidator, but never actually applied anywhere -- load
+        // accumulated identically regardless of sensitivityLevel, so switching to Low in
+        // Settings never actually made alerts less frequent, only shortened how long a
+        // *dismissed* mascot stayed hidden (reappearanceIntervalSeconds, used below). Applied
+        // as a scale on the already-computed increment rather than passed into
+        // DynamicLoadEngine itself, which stays exactly Ch.1 §15-16's literal three-term
+        // formula -- this is a session-level modulation layered on top, same relationship
+        // ZoneTransitionGate/AdaptiveAlertEngine's hysteresis have to their pure engines.
         val increment = DynamicLoadEngine.calculateIncrement(
             angleLoad = interpretation.angleLoad,
             activityMultiplier = multiplier,
             frameFactor = params.frameFactor,
             actualIntervalMillis = actualIntervalMillis,
             intendedIntervalMillis = intendedIntervalMillis,
-        )
+        ) * sensitivity.accumulationMultiplier
         cumulativeLoad.addIncrement(increment)
 
         var recoveryThisCycle = 0.0
@@ -245,13 +268,13 @@ class SessionManager(
 
         val score = ScoringEngine.calculateScore(cumulativeLoad.currentLoad, params.score, monitoringActive = true) ?: return
 
-        val sensitivity = params.sensitivityPresets.getValue(sensitivityLevel)
         val alertResult = alertEngine.onCycle(
             score = score,
             ranges = params.alertStateRanges,
             nowMillis = nowMillis,
             reappearanceIntervalMillis = sensitivity.reappearanceIntervalSeconds * 1000L,
             promptCorrectionWindowMillis = params.recovery.promptCorrectionWindowSeconds * 1000L,
+            alertQualificationMillis = sensitivity.alertQualificationSeconds * 1000L,
         )
         if (alertResult.promptCorrectionSignal) {
             val before = cumulativeLoad.currentLoad
