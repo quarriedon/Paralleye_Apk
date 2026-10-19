@@ -68,6 +68,7 @@ fun SettingsScreen() {
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var deleteComplete by remember { mutableStateOf(false) }
     var batteryOptimizationExempt by remember { mutableStateOf(PermissionChecker.isIgnoringBatteryOptimizations(context)) }
+    var usageAccessGranted by remember { mutableStateOf(PermissionChecker.hasUsageAccessPermission(context)) }
     var diagnosticsText by remember { mutableStateOf(readOverlayDiagnostics(context)) }
 
     LaunchedEffect(Unit) {
@@ -84,6 +85,7 @@ fun SettingsScreen() {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 batteryOptimizationExempt = PermissionChecker.isIgnoringBatteryOptimizations(context)
+                usageAccessGranted = PermissionChecker.hasUsageAccessPermission(context)
                 diagnosticsText = readOverlayDiagnostics(context)
             }
         }
@@ -145,6 +147,36 @@ fun SettingsScreen() {
                 modifier = Modifier.padding(top = 8.dp),
             ) {
                 Text("Exempt from battery optimization")
+            }
+        }
+
+        HorizontalDivider(modifier = Modifier.padding(vertical = 24.dp))
+
+        Text(
+            "Activity detection",
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(bottom = 4.dp),
+        )
+        if (usageAccessGranted) {
+            Text(
+                "Paralleye can see which app is in the foreground (video/game/messaging-style " +
+                    "apps), used to adjust how quickly posture load builds up. It never reads " +
+                    "any content, only the app category.",
+                style = MaterialTheme.typography.bodySmall,
+            )
+        } else {
+            Text(
+                "Without Usage Access, Paralleye can't tell what you're doing on your phone, so " +
+                    "every activity is treated the same (\"Unknown\") rather than adjusted for " +
+                    "video, games or messaging. Grant Usage Access to turn this on. It never reads " +
+                    "any content, only which app is in the foreground.",
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Button(
+                onClick = { context.startActivity(Intent(AndroidSettings.ACTION_USAGE_ACCESS_SETTINGS)) },
+                modifier = Modifier.padding(top = 8.dp),
+            ) {
+                Text("Grant Usage Access")
             }
         }
 

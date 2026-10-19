@@ -192,28 +192,28 @@ listed here and the UI must never imply scientific validation where none exists.
    yet, consistent with §26's own MVP allowance rather than the more advanced adaptation the
    chapter describes as a later increment.
 
-18. **Real activity capture (Ch.1 §12, Ch.6) — still not built, client asked directly.**
-    `ActivityClassifier` itself is a real, tested, evidence-based classifier (see ACT-01 in
-    traceability.md), but `SessionManager.onSample` has always fed it a hard-coded empty
-    observation (`keyboardActive=false, foregroundAppCategory=null,
-    continuousInteractionSeconds=0`), so every cycle classifies `UNKNOWN` and the activity
-    multiplier is always 1.0 regardless of what's actually happening on the phone — confirmed
-    unchanged on direct question. Building the real signal gathering is a genuinely bigger
-    feature than it looks, not a quick wire-up, because of what Android requires for each
-    signal Ch.6 names:
-    - **Foreground app category** needs `PACKAGE_USAGE_STATS`, which isn't a normal runtime
-      permission — the user has to be sent to a system Settings page to grant it manually, per
-      app, and Google Play's Sensitive App Permissions policy restricts which app categories
-      may request it at all.
-    - **Keyboard-active state** has no direct public API for "is some other app's keyboard
-      open right now" — the practical way to observe it is an `AccessibilityService`, which
-      Play Store review scrutinizes heavily for exactly this kind of general-purpose usage
-      (accessibility services are meant for assistive use, and Google has rejected/removed
-      apps using one as a convenience signal rather than for accessibility).
-    Both are real, legitimate Android capabilities, not blocked outright — but they're a
-    privacy-sensitive, store-policy-sensitive feature commitment, not something to wire up
-    silently as part of an unrelated fix. Needs a client decision on whether it's worth
-    pursuing before any of it gets built.
+18. **Real activity capture (Ch.1 §12, Ch.6) — foreground-app half built; keyboard-active
+    still needs a client decision.** `ActivityClassifier` itself is a real, tested,
+    evidence-based classifier (see ACT-01 in traceability.md). Client confirmed this is core to
+    the algorithm, not optional polish, so the foreground-app-category signal is now wired up
+    for real via `sensors.ForegroundAppObserver` (`UsageStatsManager`, gated on
+    `PermissionChecker.hasUsageAccessPermission`, Settings screen has a "Grant Usage Access"
+    control). Without that grant it degrades to Unknown exactly as before — graceful, not a
+    silent lie about what's being measured.
+
+    **Keyboard-active state is the one signal still not implemented.** There is no direct
+    public API for "is some other app's keyboard open right now" short of an
+    `AccessibilityService`, which Play Store review scrutinizes heavily for this kind of
+    general-purpose convenience use (accessibility services are meant for assistive use, and
+    Google has rejected/removed apps using one as a signal source rather than for accessibility
+    itself). `ActivityClassifier`'s priority order already treats keyboard as the strongest
+    signal when present and falls through to foreground-app category when absent (see its own
+    KDoc), so TYPING specifically is undercounted without it — a sustained typing session on an
+    app not categorised VIDEO/GAME/SOCIAL will classify as OTHER→Unknown rather than TYPING,
+    missing that activity's 1.3x multiplier. This is a real, legitimate Android capability, not
+    blocked outright, but it's a store-policy-sensitive commitment specifically (unlike the
+    Usage Access path, which many mainstream apps use uneventfully) — needs a client decision on
+    whether it's worth pursuing before it gets built.
 
 ## Deferred UI polish (not fabricated, not yet built)
 

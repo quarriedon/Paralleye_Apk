@@ -35,6 +35,7 @@ import sg.paralleye.domain.measurement.ScreenOrientation
 import sg.paralleye.domain.reporting.SessionSummaryAccumulator
 import sg.paralleye.logging.CycleRecord
 import sg.paralleye.logging.ParallayeLogger
+import sg.paralleye.sensors.ForegroundAppObserver
 import sg.paralleye.sensors.SensorFrameworkEngine
 
 data class PipelineCycleResult(
@@ -100,6 +101,14 @@ class SessionManager(
     private val cumulativeLoad = CumulativeLoadEngine()
     private val alertEngine = AdaptiveAlertEngine()
     private val sessionSummaryAccumulator = SessionSummaryAccumulator()
+    // Ch.1 §12, Ch.6: onSample previously fed ActivityClassifier a permanently-empty
+    // observation (no keyboard/foreground-app signal gathering existed), so every cycle
+    // classified Unknown regardless of what was actually happening on the phone -- confirmed on
+    // direct client question that activity capture is core to the algorithm, not optional
+    // polish. ForegroundAppObserver supplies the foreground-app-category half of that (not
+    // keyboard-active; see its own KDoc and docs/open-questions.md #18), degrading to Unknown by
+    // itself if Usage Access isn't granted, same as before.
+    private val foregroundAppObserver = ForegroundAppObserver(context)
     private var lastSampleTimestampNanos: Long? = null
     private var lastDiagnosticLogElapsedMillis: Long = 0L
 
@@ -229,10 +238,16 @@ class SessionManager(
         val effectiveZone = zoneGate.observe(interpretation.zone, angle, params.zoneThresholds)
         val sensitivity = params.sensitivityPresets.getValue(sensitivityLevel)
 
-        // Ch.6/ACT-01: real foreground-app/keyboard signal gathering is a follow-up; Unknown
-        // fallback is the spec-compliant default per Ch.2 Sec.9, not a placeholder guess.
+        // Ch.6/ACT-01: real foreground-app signal gathering via ForegroundAppObserver
+        // (keyboard-active still isn't gathered -- see its KDoc); Unknown fallback for either
+        // missing signal is the spec-compliant default per Ch.2 Sec.9, not a placeholder guess.
+        val foregroundObservation = foregroundAppObserver.observe()
         val activity = ActivityClassifier.classify(
-            ActivityObservation(keyboardActive = false, foregroundAppCategory = null, continuousInteractionSeconds = 0),
+            ActivityObservation(
+                keyboardActive = false,
+                foregroundAppCategory = foregroundObservation?.first,
+                continuousInteractionSeconds = foregroundObservation?.second ?: 0,
+            ),
         )
         val multiplier = params.activityMultipliers.multiplierFor(activity.category)
 
@@ -331,6 +346,7 @@ class SessionManager(
                 "cycle angle=${"%.1f".format(angle)} zone=$effectiveZone load=${"%.1f".format(cumulativeLoad.currentLoad)} " +
                     "recoveryThisCycle=${"%.2f".format(recoveryThisCycle)} score=$score " +
                     "orientation=${sample.screenOrientation} sensorMode=${sample.sensorMode} " +
+                    "activity=${activity.category}(${activity.evidenceSource}) " +
                     "raw=(${raw?.x?.let { "%.2f".format(it) }},${raw?.y?.let { "%.2f".format(it) }},${raw?.z?.let { "%.2f".format(it) }})",
             )
         }
