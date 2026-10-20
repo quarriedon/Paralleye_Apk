@@ -71,10 +71,10 @@ class ConfigValidatorTest {
         val table = AngleLoadTable.DEFAULT
         assertTrue(table.loadFor(0.0) == 0.0)
         assertTrue(table.loadFor(20.0) == 0.0)
-        assertTrue(table.loadFor(21.0) == 2.0)
-        assertTrue(table.loadFor(25.0) == 2.0)
-        assertTrue(table.loadFor(26.0) == 4.0)
-        assertTrue(table.loadFor(60.0) == 8.0)
-        assertTrue(table.loadFor(90.0) == 10.0)
+        assertTrue(table.loadFor(21.0) == 1.5)
+        assertTrue(table.loadFor(25.0) == 1.5)
+        assertTrue(table.loadFor(26.0) == 3.0)
+        assertTrue(table.loadFor(60.0) == 6.0)
+        assertTrue(table.loadFor(90.0) == 7.5)
     }
 }

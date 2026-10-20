@@ -1,5 +1,6 @@
 package sg.paralleye.ui.history
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -7,8 +8,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
@@ -22,7 +25,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -30,6 +35,9 @@ import sg.paralleye.data.db.ParallayeDatabase
 import sg.paralleye.data.reporting.ReportingRepository
 import sg.paralleye.domain.behaviour.PostureZone
 import sg.paralleye.domain.reporting.SessionSummary
+import sg.paralleye.ui.ActivityBreakdownBar
+import sg.paralleye.ui.PostureDisplay
+import sg.paralleye.ui.ZoneBreakdownRing
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.concurrent.TimeUnit
@@ -37,7 +45,8 @@ import java.util.concurrent.TimeUnit
 /**
  * Functional Spec System 10, Ch.12 §12-16: read-only presentation of already-completed
  * [SessionSummary] records — nothing here recalculates anything, it only formats what
- * [ReportingRepository] already has stored.
+ * [ReportingRepository] already has stored. "Progress" is this screen's user-facing name (the
+ * bottom-nav tab and header); the underlying screen/file name is unchanged.
  */
 @Composable
 fun HistoryScreen() {
@@ -50,7 +59,7 @@ fun HistoryScreen() {
     }
 
     Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
-        Text("Session history", style = MaterialTheme.typography.headlineSmall)
+        Text("Progress", style = MaterialTheme.typography.headlineSmall)
         Text(
             "Past posture assistance sessions, most recent first.",
             style = MaterialTheme.typography.bodyMedium,
@@ -68,7 +77,7 @@ fun HistoryScreen() {
                     style = MaterialTheme.typography.bodyMedium,
                 )
             }
-            else -> LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            else -> LazyColumn(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 items(currentSessions, key = { it.sessionId }) { session -> SessionCard(session) }
             }
         }
@@ -83,42 +92,63 @@ private fun SessionCard(session: SessionSummary) {
                 Text(formatDate(session.startEpochMillis), style = MaterialTheme.typography.titleMedium)
                 Text(formatDuration(session.durationMillis), style = MaterialTheme.typography.titleMedium)
             }
-            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                SummaryStat("Final score", "${session.finalScore}")
-                SummaryStat("Average", "${session.averageScore.toInt()}")
-                SummaryStat("Lowest", "${session.minScore}")
-            }
-            Text(
-                zoneBreakdown(session),
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.padding(top = 12.dp),
-            )
-            if (session.alertCount > 0) {
-                Text(
-                    "${session.alertCount} reminder(s) shown, ${session.correctionEventCount} prompt correction(s)",
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(top = 4.dp),
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                ZoneBreakdownRing(
+                    zoneDurationsMillis = session.zoneDurationsMillis,
+                    averageScore = session.averageScore.toInt(),
                 )
+                Column(modifier = Modifier.padding(start = 16.dp)) {
+                    SummaryStat("Duration", formatDuration(session.durationMillis))
+                    SummaryStat("Alerts Triggered", "${session.alertCount}")
+                    SummaryStat("Alerts Answered", "${session.correctionEventCount}")
+                }
             }
+
+            Text(
+                "Zone Duration Breakdown",
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier.padding(top = 16.dp, bottom = 4.dp),
+            )
+            listOf(PostureZone.GREEN, PostureZone.YELLOW, PostureZone.RED).forEach { zone ->
+                ZoneDurationRow(zone, session.zoneDurationsMillis[zone] ?: 0L)
+            }
+
+            Text(
+                "Usage Type Analytics",
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier.padding(top = 16.dp, bottom = 8.dp),
+            )
+            ActivityBreakdownBar(activityDurationsMillis = session.activityDurationsMillis)
         }
     }
 }
 
 @Composable
 private fun SummaryStat(label: String, value: String) {
-    Column {
-        Text(value, style = MaterialTheme.typography.titleLarge)
-        Text(label, style = MaterialTheme.typography.labelSmall)
+    Row(modifier = Modifier.padding(vertical = 2.dp)) {
+        Text(label, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(end = 8.dp))
+        Text(value, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
     }
 }
 
-private fun zoneBreakdown(session: SessionSummary): String {
-    val totalMillis = session.zoneDurationsMillis.values.sum().coerceAtLeast(1)
-    val order = listOf(PostureZone.GREEN, PostureZone.YELLOW, PostureZone.RED)
-    return order.joinToString("  ·  ") { zone ->
-        val percent = 100 * (session.zoneDurationsMillis[zone] ?: 0) / totalMillis
-        "${zone.name.lowercase().replaceFirstChar { it.uppercase() }} $percent%"
+@Composable
+private fun ZoneDurationRow(zone: PostureZone, durationMillis: Long) {
+    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            modifier = Modifier
+                .size(8.dp)
+                .clip(CircleShape)
+                .background(PostureDisplay.zoneColor(zone)),
+        )
+        Text(
+            "${PostureDisplay.zoneLabel(zone)} Zone",
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.padding(start = 8.dp).weight(1f),
+        )
+        Text(formatDuration(durationMillis), style = MaterialTheme.typography.bodySmall)
     }
 }
 
@@ -127,5 +157,6 @@ private fun formatDate(epochMillis: Long): String =
 
 private fun formatDuration(durationMillis: Long): String {
     val minutes = TimeUnit.MILLISECONDS.toMinutes(durationMillis)
-    return if (minutes < 1) "<1 min" else "$minutes min"
+    val seconds = TimeUnit.MILLISECONDS.toSeconds(durationMillis) % 60
+    return if (minutes < 1) "${seconds}s" else "${minutes}m ${seconds}s"
 }

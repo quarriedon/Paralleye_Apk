@@ -57,6 +57,10 @@ object ConfigValidator {
         if (params.recovery.activationDegrees <= 0.0) {
             problems += "Recovery activation angle must be positive, was ${params.recovery.activationDegrees}"
         }
+        if (params.recovery.taperDegrees <= 0.0 || params.recovery.taperDegrees > params.recovery.activationDegrees) {
+            problems += "Recovery taper degrees must be positive and no more than the activation angle, " +
+                "was ${params.recovery.taperDegrees}"
+        }
         if (params.recovery.promptCorrectionWindowSeconds < 0) {
             problems += "Recovery prompt-correction window must be non-negative"
         }

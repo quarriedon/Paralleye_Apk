@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import sg.paralleye.config.ParallayeParameters
 import sg.paralleye.config.SensitivityLevel
+import sg.paralleye.config.ActivityCategory
 import sg.paralleye.config.ConfigValidator
 import sg.paralleye.config.ValidationResult
 import sg.paralleye.data.calibration.CalibrationRepository
@@ -45,6 +46,7 @@ data class PipelineCycleResult(
     val cumulativeLoad: Double,
     val score: Int,
     val alertVisibility: MascotVisibility,
+    val activityCategory: ActivityCategory,
 )
 
 /**
@@ -330,6 +332,7 @@ class SessionManager(
             cumulativeLoad = cumulativeLoad.currentLoad,
             score = score,
             alertVisibility = alertResult.visibility,
+            activityCategory = activity.category,
         )
 
         // Debugging aid, not part of the methodology: "score stuck, doesn't recover" is hard to

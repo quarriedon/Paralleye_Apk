@@ -108,14 +108,22 @@ data class AngleLoadTable(val bands: List<AngleLoadBand>, val origin: ParameterO
     }
 
     companion object {
+        /**
+         * Values scaled to 75% of the Ch.1 §11 literal table on client direction, after device
+         * testing reported alerts feeling too aggressive even for mild posture deviations --
+         * same shape/non-linearity, lower overall accumulation. Origin stays
+         * ALGORITHM_SPECIFICATION since this is a deliberate, documented scale-down of that
+         * table's own values, not a different source; the un-scaled table is this round's git
+         * history if it's ever needed back.
+         */
         val DEFAULT = AngleLoadTable(
             bands = listOf(
                 AngleLoadBand(0.0, 20.0, 0.0),
-                AngleLoadBand(21.0, 25.0, 2.0),
-                AngleLoadBand(26.0, 35.0, 4.0),
-                AngleLoadBand(36.0, 45.0, 6.0),
-                AngleLoadBand(46.0, 60.0, 8.0),
-                AngleLoadBand(61.0, null, 10.0),
+                AngleLoadBand(21.0, 25.0, 1.5),
+                AngleLoadBand(26.0, 35.0, 3.0),
+                AngleLoadBand(36.0, 45.0, 4.5),
+                AngleLoadBand(46.0, 60.0, 6.0),
+                AngleLoadBand(61.0, null, 7.5),
             ),
             origin = ParameterOrigin.ALGORITHM_SPECIFICATION,
         )
@@ -129,13 +137,22 @@ data class ActivityMultipliers(val values: Map<ActivityCategory, Double>, val or
         values[category] ?: values.getValue(ActivityCategory.UNKNOWN)
 
     companion object {
-        /** Ch.1 §14.2 — the set selected as active for the MVP (Ch.6 resolution). */
+        /**
+         * Ch.1 §14.2 — the set selected as active for the MVP (Ch.6 resolution). Typing/Gaming
+         * reduced from the Patent Document's literal 1.3/1.5 to 1.15/1.25 on client direction
+         * after device testing showed real activity detection (once actually wired up) made
+         * ordinary typing/gaming sessions accumulate load noticeably faster than any earlier
+         * build the client had compared this against, where activity was always Unknown (1.0x)
+         * and these multipliers never actually applied. Video/Scrolling/Unknown unchanged --
+         * origin stays PATENT_DOCUMENT since this is a deliberate, documented scale-down of
+         * that set's own values, not a different source.
+         */
         val PATENT_DOCUMENT = ActivityMultipliers(
             values = mapOf(
                 ActivityCategory.VIDEO to 0.8,
                 ActivityCategory.SCROLLING to 1.0,
-                ActivityCategory.TYPING to 1.3,
-                ActivityCategory.GAMING to 1.5,
+                ActivityCategory.TYPING to 1.15,
+                ActivityCategory.GAMING to 1.25,
                 ActivityCategory.UNKNOWN to 1.0,
             ),
             origin = ParameterOrigin.PATENT_DOCUMENT,
@@ -158,12 +175,22 @@ data class ActivityMultipliers(val values: Map<ActivityCategory, Double>, val or
 /**
  * Ch.1 §18 / Ch.8 resolution: recovery activates continuously below [activationDegrees] with
  * no minimum-duration gate (the Algorithm Spec's 120s qualification was NOT carried forward),
- * subtracting `rate × ((activationDegrees − θ) / activationDegrees)` from cumulative load each
- * qualifying cycle, floored at zero.
+ * subtracting from cumulative load each qualifying cycle, floored at zero.
+ *
+ * [taperDegrees]: client-directed tuning (not a filed methodology value) after a device-testing
+ * report that posture never seemed to "clear" even once visibly corrected. The original literal
+ * reading -- `rate × (activationDegrees − θ) / activationDegrees` -- ramps recovery down to
+ * near-zero across the *entire* activation range, so only a near-perfectly vertical phone (θ
+ * close to 0°) ever recovered at full strength; anywhere else in the Green zone recovered at a
+ * fraction of it. Now full-strength for θ up to `activationDegrees − taperDegrees`, tapering
+ * linearly to zero only over the last `taperDegrees` before the boundary -- recovery speed no
+ * longer depends on how close to literally vertical the phone is, only on whether posture is
+ * within the zone at all, except right at its edge.
  */
 data class RecoveryConfig(
     val activationDegrees: Double,
     val rate: Double,
+    val taperDegrees: Double,
     /** Ch.8 "Prompt Correction Signal": one-time bonus if posture corrects within this window of reaching Full Alert. */
     val promptCorrectionWindowSeconds: Int,
     val promptCorrectionBonus: Double,
@@ -173,6 +200,7 @@ data class RecoveryConfig(
         val DEFAULT = RecoveryConfig(
             activationDegrees = 20.0,
             rate = 0.3,
+            taperDegrees = 5.0,
             promptCorrectionWindowSeconds = 10,
             promptCorrectionBonus = 5.0,
             origin = ParameterOrigin.TECHNICAL_METHODOLOGY_RESOLUTION,

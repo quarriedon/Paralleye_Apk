@@ -68,6 +68,7 @@ class RecoveryEngineTest {
     private val config = RecoveryConfig(
         activationDegrees = 20.0,
         rate = 0.3,
+        taperDegrees = 5.0,
         promptCorrectionWindowSeconds = 10,
         promptCorrectionBonus = 5.0,
         origin = ParameterOrigin.TECHNICAL_METHODOLOGY_RESOLUTION,
@@ -79,8 +80,22 @@ class RecoveryEngineTest {
     }
 
     @Test
-    fun `five degrees at intended sampling rate produces approximately 0,225`() {
-        assertEquals(0.225, RecoveryEngine.calculateRecovery(5.0, config, 20.0, 20.0), 0.001)
+    fun `five degrees is still within the full-rate plateau, produces maximum recovery`() {
+        // taperStart = activationDegrees - taperDegrees = 15, so anything up to 15 degrees
+        // recovers at full strength -- recovery speed no longer depends on being close to
+        // literally vertical, only on being within the zone at all.
+        assertEquals(0.3, RecoveryEngine.calculateRecovery(5.0, config, 20.0, 20.0), 0.0001)
+    }
+
+    @Test
+    fun `fifteen degrees, right at the taper boundary, still produces maximum recovery`() {
+        assertEquals(0.3, RecoveryEngine.calculateRecovery(15.0, config, 20.0, 20.0), 0.0001)
+    }
+
+    @Test
+    fun `eighteen degrees, inside the taper window, produces reduced recovery`() {
+        // (activationDegrees - angle) / taperDegrees = (20-18)/5 = 0.4
+        assertEquals(0.3 * 0.4, RecoveryEngine.calculateRecovery(18.0, config, 20.0, 20.0), 0.0001)
     }
 
     @Test
