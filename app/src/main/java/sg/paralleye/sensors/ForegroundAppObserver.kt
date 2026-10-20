@@ -92,27 +92,68 @@ class ForegroundAppObserver(private val context: Context) {
 
     /**
      * Ch.6 names category buckets (video/game/messaging-or-browser) but not how to derive them
-     * from a package name -- this uses each app's own Play-declared [ApplicationInfo.category]
-     * (the same metadata Play Console requires for store listing) rather than a hand-maintained
-     * package list, so it doesn't silently misclassify every app this build's author didn't
-     * think to list. An engineering mapping choice, not a filed methodology value.
+     * from a package name. This originally used only each app's Play-declared
+     * [ApplicationInfo.category], reasoning that a hand-maintained package list would silently
+     * misclassify every app its author didn't think to list -- confirmed wrong by direct device
+     * testing across several real apps, which showed Unknown every time regardless of what was
+     * actually running. `ApplicationInfo.category` comes from the optional `android:appCategory`
+     * manifest attribute, which most third-party apps never set -- it is unrelated to an app's
+     * Play Store listing category despite the similar name, so [ApplicationInfo.CATEGORY_UNDEFINED]
+     * is the common case, not the exception, and nearly everything fell through to [OTHER] no
+     * matter what it actually was. [KNOWN_PACKAGE_CATEGORIES] is a bounded, documented exception
+     * to the original no-hand-maintained-list reasoning, used only as a fallback when the
+     * declared category is undefined -- anything not on it still correctly degrades to
+     * [OTHER] -> Unknown (Ch.2 Sec.9), this is a precision improvement for common apps, not a
+     * claim of exhaustive coverage.
      */
     private fun categoryFor(packageName: String): ForegroundAppCategory {
-        val category = try {
+        val declared = try {
             packageManager.getApplicationInfo(packageName, 0).category
         } catch (e: PackageManager.NameNotFoundException) {
             ApplicationInfo.CATEGORY_UNDEFINED
         }
-        return when (category) {
+        return when (declared) {
             ApplicationInfo.CATEGORY_GAME -> ForegroundAppCategory.GAME
             ApplicationInfo.CATEGORY_VIDEO -> ForegroundAppCategory.VIDEO_PLAYER
             ApplicationInfo.CATEGORY_SOCIAL -> ForegroundAppCategory.MESSAGING_OR_BROWSER
-            else -> ForegroundAppCategory.OTHER
+            else -> KNOWN_PACKAGE_CATEGORIES[packageName] ?: ForegroundAppCategory.OTHER
         }
     }
 
     companion object {
         private const val QUERY_THROTTLE_MILLIS = 2_000L
         private const val LOOKBACK_MILLIS = 60_000L
+
+        /** See [categoryFor]'s KDoc for why this fallback list exists. Package names, not app
+         * names, since that's the only stable identifier [UsageEvents] reports. */
+        private val KNOWN_PACKAGE_CATEGORIES: Map<String, ForegroundAppCategory> = mapOf(
+            // Video
+            "com.google.android.youtube" to ForegroundAppCategory.VIDEO_PLAYER,
+            "com.google.android.apps.youtube.music" to ForegroundAppCategory.VIDEO_PLAYER,
+            "com.google.android.videos" to ForegroundAppCategory.VIDEO_PLAYER,
+            "com.netflix.mediaclient" to ForegroundAppCategory.VIDEO_PLAYER,
+            "com.disney.disneyplus" to ForegroundAppCategory.VIDEO_PLAYER,
+            "com.amazon.avod.thirdpartyclient" to ForegroundAppCategory.VIDEO_PLAYER,
+            "tv.twitch.android.app" to ForegroundAppCategory.VIDEO_PLAYER,
+            "com.zhiliaoapp.musically" to ForegroundAppCategory.VIDEO_PLAYER, // TikTok
+            "com.ss.android.ugc.trill" to ForegroundAppCategory.VIDEO_PLAYER, // TikTok, alt build id
+            // Messaging / social / browser
+            "com.instagram.android" to ForegroundAppCategory.MESSAGING_OR_BROWSER,
+            "com.facebook.katana" to ForegroundAppCategory.MESSAGING_OR_BROWSER,
+            "com.facebook.orca" to ForegroundAppCategory.MESSAGING_OR_BROWSER,
+            "com.whatsapp" to ForegroundAppCategory.MESSAGING_OR_BROWSER,
+            "com.twitter.android" to ForegroundAppCategory.MESSAGING_OR_BROWSER,
+            "com.snapchat.android" to ForegroundAppCategory.MESSAGING_OR_BROWSER,
+            "com.discord" to ForegroundAppCategory.MESSAGING_OR_BROWSER,
+            "com.google.android.apps.messaging" to ForegroundAppCategory.MESSAGING_OR_BROWSER,
+            "com.android.chrome" to ForegroundAppCategory.MESSAGING_OR_BROWSER,
+            "org.mozilla.firefox" to ForegroundAppCategory.MESSAGING_OR_BROWSER,
+            // Games (common, wide-age-range titles, since the client's stated audience is kids)
+            "com.roblox.client" to ForegroundAppCategory.GAME,
+            "com.mojang.minecraftpe" to ForegroundAppCategory.GAME,
+            "com.supercell.clashofclans" to ForegroundAppCategory.GAME,
+            "com.king.candycrushsaga" to ForegroundAppCategory.GAME,
+            "com.epicgames.fortnite" to ForegroundAppCategory.GAME,
+        )
     }
 }

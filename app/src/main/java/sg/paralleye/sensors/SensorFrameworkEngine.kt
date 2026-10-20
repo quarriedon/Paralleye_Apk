@@ -5,6 +5,8 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.hardware.display.DisplayManager
+import android.view.Display
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -38,6 +40,26 @@ class SensorFrameworkEngine(
     private val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
     private val accelerometer: Sensor? = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
     private val gyroscope: Sensor? = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE)
+
+    // Ch.3 §18, reported again after the ALERT-05/ANG orientation-sync fix shipped: "landscape
+    // more alert came and stays even when the phone was vertical in landscape." The existing fix
+    // only updates `screenOrientation` reactively, from SessionManager's DisplayManager.
+    // DisplayListener callback -- that callback is not guaranteed to fire before the next
+    // accelerometer sample(s) after a physical rotation, and isn't even guaranteed to fire
+    // promptly relative to the OS's own rotation-settle debounce. Every sample processed in that
+    // gap used the *old* orientation's axis remap against the *new* physical orientation, which
+    // for a genuinely vertical phone reads as a wildly wrong angle (not a small error -- see
+    // DeviceAngleCalculator's KDoc: the vertical-reading axis swaps outright between
+    // orientations), spiking cumulativeLoad before the listener-driven ORIENTATION_TRANSITION
+    // quality gate even engages, after which the bounded recovery rate makes the alert "stay"
+    // for a while despite correct posture. Querying the display directly on every accelerometer
+    // tick (cheap -- DisplayManager caches this locally, no binder round trip per call) removes
+    // the dependency on listener delivery timing for per-sample *correctness*; the
+    // SessionManager-driven listener path is left in place and still does useful work (it is
+    // what actually triggers the stabilisation-window reset below, via the same
+    // onScreenOrientationChanged -- both paths call it, and it is idempotent when the
+    // orientation hasn't actually changed).
+    private val displayManager = context.getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
 
     private val complementaryFilter = ComplementaryFilter(config.complementaryFilterAlpha)
     private val stabilityQualifier = StablePostureQualifier(
@@ -98,6 +120,13 @@ class SensorFrameworkEngine(
         inOrientationTransitionUntilMillis = android.os.SystemClock.elapsedRealtime() + config.orientationTransitionStabilisationMillis
     }
 
+    /** See the KDoc on [displayManager] for why this is queried per-sample rather than relying
+     * solely on the externally-driven [onScreenOrientationChanged]. */
+    private fun syncScreenOrientationFromDisplay() {
+        val rotation = displayManager.getDisplay(Display.DEFAULT_DISPLAY)?.rotation ?: return
+        onScreenOrientationChanged(ScreenOrientation.fromSurfaceRotation(rotation))
+    }
+
     override fun onSensorChanged(event: SensorEvent) {
         when (event.sensor.type) {
             Sensor.TYPE_GYROSCOPE -> {
@@ -109,6 +138,7 @@ class SensorFrameworkEngine(
     }
 
     private fun processAccelerometerEvent(event: SensorEvent) {
+        syncScreenOrientationFromDisplay()
         val raw = Vector3(event.values[0], event.values[1], event.values[2])
         val timestampNanos = event.timestamp
 
