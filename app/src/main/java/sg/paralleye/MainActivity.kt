@@ -94,7 +94,7 @@ private fun LoadingScreen() {
 }
 
 private enum class MainTab(val label: String) {
-    MONITOR("Monitor"),
+    MONITOR("Posture"),
     HISTORY("History"),
     SETTINGS("Settings"),
 }
@@ -140,7 +140,7 @@ private fun MainTabs() {
  * monitoring short of force-stopping the whole app from Android Settings. Stop tears down the
  * foreground service (through the same `onDestroy` -> `completeSession` path that already
  * existed for system-initiated teardown) and flips [SessionManagerHolder.stoppedByUser] so this
- * screen shows a "Start Monitoring" prompt instead of silently auto-restarting the moment the
+ * screen shows a "Start Posture Assistance" prompt instead of silently auto-restarting the moment the
  * user switches back to this tab.
  */
 @Composable
@@ -190,11 +190,7 @@ private fun MonitoringActiveScreen() {
             modifier = Modifier.fillMaxSize().padding(24.dp),
             verticalArrangement = Arrangement.Center,
         ) {
-            Text("Paralleye is monitoring your posture", style = MaterialTheme.typography.headlineSmall)
-            Text(
-                "You can put your phone away — Ms Angle Angel will check in if it's worth a stretch.",
-                modifier = Modifier.padding(top = 8.dp),
-            )
+            Text("Posture assistance is active", style = MaterialTheme.typography.headlineSmall)
             val result = displayedResult
             if (result != null) {
                 Text("Score: ${result.score}", modifier = Modifier.padding(top = 24.dp))
@@ -246,12 +242,12 @@ private fun StoppedScreen(onStart: () -> Unit) {
             modifier = Modifier.padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text("Monitoring is stopped", style = MaterialTheme.typography.headlineSmall)
+            Text("Posture assistance is off", style = MaterialTheme.typography.headlineSmall)
             Text(
                 "Paralleye isn't watching your posture right now.",
                 modifier = Modifier.padding(top = 8.dp, bottom = 16.dp),
             )
-            Button(onClick = onStart) { Text("Start Monitoring") }
+            Button(onClick = onStart) { Text("Start Posture Assistance") }
         }
     }
 }

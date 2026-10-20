@@ -35,7 +35,7 @@ fun WelcomeScreen(onContinue: () -> Unit) {
     ) {
         Text("Welcome to Paralleye", style = MaterialTheme.typography.headlineMedium)
         Text(
-            "Paralleye passively monitors your posture using your phone's motion sensors only — " +
+            "Paralleye checks your posture as you use your phone, using its motion sensors only — " +
                 "no camera, no microphone, no facial recognition.",
             modifier = Modifier.padding(top = 16.dp, bottom = 24.dp),
         )
@@ -112,7 +112,7 @@ fun PermissionExplanationScreen(onAllGranted: () -> Unit) {
         Text("A couple of permissions", style = MaterialTheme.typography.headlineSmall)
         Text(
             "Paralleye needs permission to display Ms Angle Angel over other apps, and to show " +
-                "a quiet ongoing notification while monitoring runs in the background.",
+                "a quiet ongoing notification while posture assistance runs in the background.",
             modifier = Modifier.padding(top = 8.dp, bottom = 24.dp),
         )
         if (!sg.paralleye.session.PermissionChecker.hasOverlayPermission(context)) {
@@ -197,9 +197,9 @@ fun OnboardingCompleteScreen(onFinish: () -> Unit) {
     Column(modifier = Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center) {
         Text("You're all set", style = MaterialTheme.typography.headlineSmall)
         Text(
-            "Paralleye will now monitor your posture in the background and check in through Ms Angle Angel when it's worth a stretch.",
+            "Paralleye will check your posture as you use your phone and check in through Ms Angle Angel when it's worth a stretch.",
             modifier = Modifier.padding(top = 8.dp, bottom = 24.dp),
         )
-        Button(onClick = onFinish) { Text("Start monitoring") }
+        Button(onClick = onFinish) { Text("Start Posture Assistance") }
     }
 }

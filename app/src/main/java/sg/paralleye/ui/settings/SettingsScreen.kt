@@ -125,14 +125,14 @@ fun SettingsScreen() {
         )
         if (batteryOptimizationExempt) {
             Text(
-                "Paralleye is exempt from battery optimization. Monitoring can keep running with " +
-                    "the app closed or the screen off.",
+                "Paralleye is exempt from battery optimization. Posture assistance can keep running " +
+                    "with the app closed or the screen off.",
                 style = MaterialTheme.typography.bodySmall,
             )
         } else {
             Text(
-                "Your phone's battery manager can stop Paralleye from monitoring once it's no " +
-                    "longer on screen. Exempting it from battery optimization keeps monitoring " +
+                "Your phone's battery manager can stop Paralleye's posture assistance once it's no " +
+                    "longer on screen. Exempting it from battery optimization keeps it " +
                     "running in the background.",
                 style = MaterialTheme.typography.bodySmall,
             )

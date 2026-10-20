@@ -52,7 +52,7 @@ fun HistoryScreen() {
     Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
         Text("Session history", style = MaterialTheme.typography.headlineSmall)
         Text(
-            "Past monitoring sessions, most recent first.",
+            "Past posture assistance sessions, most recent first.",
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.padding(top = 4.dp, bottom = 16.dp),
         )
@@ -64,7 +64,7 @@ fun HistoryScreen() {
             }
             currentSessions.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
-                    "No completed sessions yet — this fills in once Paralleye has monitored a full session.",
+                    "No completed sessions yet — this fills in once Paralleye has tracked a full session.",
                     style = MaterialTheme.typography.bodyMedium,
                 )
             }
