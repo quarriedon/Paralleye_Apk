@@ -11,10 +11,10 @@ class AngleInterpretationEngineTest {
     private val params = ParallayeParameters.PROVISIONAL
 
     @Test
-    fun `23,4 degrees classifies Yellow with load 2, per Ch5 worked example`() {
+    fun `23,4 degrees classifies Yellow with load 1,5, per client-directed 75% scale-down of the Ch5 worked example`() {
         val result = AngleInterpretationEngine.interpret(23.4, MeasurementQuality.VALID, params)!!
         assertEquals(PostureZone.YELLOW, result.zone)
-        assertEquals(2.0, result.angleLoad, 0.0001)
+        assertEquals(1.5, result.angleLoad, 0.0001)
     }
 
     @Test
